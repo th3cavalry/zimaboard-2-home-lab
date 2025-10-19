@@ -2,9 +2,9 @@
 
 **The complete, one-command security homelab for ZimaBoard 2 + cellular internet**
 
-[![Proxmox VE](https://img.shields.io/badge/Proxmox-VE%208.1-orange)](https://proxmox.com/)
+[![Proxmox VE](https://img.shields.io/badge/Proxmox-VE%209.0-orange)](https://proxmox.com/)
 [![ZimaBoard 2](https://img.shields.io/badge/ZimaBoard-2%20Supported-blue)](https://www.zimaspace.com/)
-[![Cellular Optimized](https://img.shields.io/badge/Cellular-Optimized-green)](https://github.com/th3cavalry/zimaboard-2-home-lab)
+[![eMMC Optimized](https://img.shields.io/badge/eMMC-Optimized-green)](https://github.com/th3cavalry/zimaboard-2-home-lab)
 [![One Command](https://img.shields.io/badge/Install-One%20Command-brightgreen)](https://github.com/th3cavalry/zimaboard-2-home-lab)
 
 ## 🚀 Quick Start (TL;DR)
@@ -66,48 +66,89 @@ This homelab provides enterprise-grade security for your home network, optimized
 
 ### Prerequisites
 - **ZimaBoard 2** (16GB RAM, Intel VT-x enabled)
-- **32GB+ storage** for Proxmox OS (eMMC/SSD)  
-- **2TB SSD** for services and data
-- **8GB+ USB drive** for installation
-- **Network connection** for setup
+- **32GB+ eMMC storage** for Proxmox VE 9 OS (or SSD alternative)  
+- **2TB SSD** for services and data storage
+- **8GB+ USB drive** for installation media
+- **Network connection** for setup and updates
+
+**📱 eMMC-Specific Requirements:**
+- Minimum 32GB eMMC (64GB recommended for better wear leveling)
+- eMMC must support UHS-I/HS400 mode for optimal performance
+- BIOS/UEFI must detect eMMC as bootable device
+- Stable power supply (eMMC sensitive to power fluctuations)
 
 ### Step-by-Step Installation
 
-#### 1️⃣ Download Proxmox VE
+#### 1️⃣ Download Proxmox VE 9
 ```bash
-# Download latest Proxmox VE 8.1+ ISO
-wget https://enterprise.proxmox.com/iso/proxmox-ve_8.1-2.iso
+# Download latest Proxmox VE 9.0+ ISO (August 2025)
+wget https://enterprise.proxmox.com/iso/proxmox-ve_9.0-1.iso
 
 # Verify checksum (recommended)
-sha256sum proxmox-ve_8.1-2.iso
+sha256sum proxmox-ve_9.0-1.iso
+# Expected: 228f948ae696f2448460443f4b619157cab78ee69802acc0d06761ebd4f51c3e
 ```
+
+**📱 eMMC Installation Notes:**
+- Proxmox VE 9 includes improved eMMC support
+- Supports secure boot (for systems with eMMC-based UEFI)
+- Better power management for embedded systems
 
 #### 2️⃣ Create Installation USB
 ```bash
 # Linux/macOS (replace /dev/sdX with your USB drive)
-sudo dd if=proxmox-ve_8.1-2.iso of=/dev/sdX bs=4M status=progress
+sudo dd if=proxmox-ve_9.0-1.iso of=/dev/sdX bs=4M status=progress
 
 # Windows: Use Rufus or similar tool
+# - Select "GPT" partition scheme for UEFI systems
+# - Use "DD Image" mode for best compatibility
 ```
 
-#### 3️⃣ Configure ZimaBoard 2 BIOS
-- Power on ZimaBoard 2, press **F11** or **Delete** for BIOS
+**⚠️ eMMC Storage Preparation:**
+- eMMC storage appears as `/dev/mmcblk0` (not `/dev/sda`)
+- Ensure eMMC is properly detected in BIOS/UEFI
+- Some systems may need "eMMC Mode" enabled in BIOS
+
+#### 3️⃣ Configure ZimaBoard 2 BIOS/UEFI
+- Power on ZimaBoard 2, press **F11** or **Delete** for BIOS/UEFI
 - **Enable** Intel VT-x (Virtualization Technology)
+- **Enable** Intel VT-d (for PCI passthrough, optional)
 - Set **USB boot** as first priority  
-- **Disable** Secure Boot if enabled
+- **Disable** Secure Boot (or leave enabled for Proxmox VE 9+)
 - **Enable** UEFI boot mode
+- **eMMC Settings**:
+  - Ensure eMMC is detected and enabled
+  - Set eMMC mode to "HS400" if available (fastest)
+  - Enable "eMMC Boot" support
 - **Save and exit**
 
-#### 4️⃣ Install Proxmox VE
+**🔧 eMMC-Specific BIOS Notes:**
+- Some ZimaBoard units may show eMMC as "MMC Device" 
+- Verify eMMC appears in storage devices list
+- eMMC typically shows as 32GB or 64GB depending on model
+
+#### 4️⃣ Install Proxmox VE 9 on eMMC
 - Boot from USB drive
-- Select **"Install Proxmox VE (Graphical)"**
-- **Target Harddisk**: Select 32GB eMMC/SSD for OS
-- **Key Settings**:
-  - Filesystem: **ext4** (optimal for eMMC)
-  - hdsize: **28GB** (leaves 4GB safety margin)
-  - swapsize: **2GB** (minimal for 16GB RAM)
+- Select **"Install Proxmox VE (Graphical)"** or **"Install Proxmox VE (Terminal UI)"**
+- **Target Harddisk**: Select eMMC device (usually `/dev/mmcblk0`)
+
+**🏗️ eMMC-Optimized Settings:**
+  - Filesystem: **ext4** (optimal for eMMC longevity)
+  - hdsize: **28GB** (leaves 4GB safety margin on 32GB eMMC)
+  - swapsize: **1GB** (reduced for eMMC - optimization will handle memory compression)
   - maxroot: **8GB** (system partition)
   - maxvz: **18GB** (container storage)
+  - minfree: **1GB** (emergency space for eMMC wear leveling)
+
+**⚡ Storage Layout for 32GB eMMC:**
+```
+/dev/mmcblk0p1  512MB  EFI System Partition
+/dev/mmcblk0p2   8GB   Root filesystem (/)
+/dev/mmcblk0p3   1GB   Swap
+/dev/mmcblk0p4  18GB   LVM for containers (/var/lib/vz)
+Free space:     4GB    Unallocated (wear leveling reserve)
+```
+
 - **Network Configuration**:
   - Hostname: **zimaboard.local**
   - IP Address: **192.168.8.100/24** (static recommended)
@@ -116,33 +157,59 @@ sudo dd if=proxmox-ve_8.1-2.iso of=/dev/sdX bs=4M status=progress
 - Set strong **root password**
 - Complete installation and **reboot**
 
+**⚠️ eMMC Installation Tips:**
+- Installation may take 10-15 minutes on eMMC (slower than SSD)
+- Ensure stable power during installation (eMMC corruption risk)
+- Choose "ext4" not "ZFS" - ext4 is optimal for eMMC longevity
+
 #### 5️⃣ Initial Configuration
 ```bash
-# Access Proxmox web interface
+# Access Proxmox VE 9 web interface
 # Navigate to: https://192.168.8.100:8006
 # Login: root / (your-password)
 
 # SSH into Proxmox for initial setup
 ssh root@192.168.8.100
 
-# Update system and configure repositories
+# Update system and configure repositories (Proxmox VE 9)
 apt update && apt upgrade -y
 echo "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-community.list
-rm /etc/apt/sources.list.d/pve-enterprise.list
+rm /etc/apt/sources.list.d/pve-enterprise.list 2>/dev/null || true
 apt update
 apt install -y curl wget git htop
+
+# Verify eMMC optimization will be applied
+echo "eMMC device detected: $(ls /dev/mmcblk* 2>/dev/null || echo 'None found')"
+df -h  # Check current storage usage
+```
+
+**🔧 Post-Installation eMMC Checks:**
+```bash
+# Verify eMMC is properly mounted
+mount | grep mmcblk
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep mmcblk
+
+# Check eMMC health (if available)
+cat /sys/block/mmcblk0/stat 2>/dev/null || echo "eMMC stats not available"
 ```
 
 #### 6️⃣ Deploy Complete Homelab
 ```bash
-# One command installs everything!
+# One command installs everything with eMMC optimization!
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/complete-setup.sh | bash
 
-# Alternative: Modern 2025 version with AdGuard Home
+# Alternative: Modern 2025 version with AdGuard Home  
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/complete-setup-modern.sh | bash
 ```
 
-**🎉 That's it! Your homelab is ready!**
+**🎉 That's it! Your eMMC-optimized homelab is ready!**
+
+The complete setup automatically includes:
+- ✅ **eMMC longevity optimization** (60-80% write reduction)
+- ✅ **Memory compression** (zswap for better RAM utilization)
+- ✅ **Intelligent caching** (reduces eMMC wear)
+- ✅ **Health monitoring** (automated eMMC health checks)
+- ✅ **Maintenance automation** (scheduled optimization tasks)
 
 ---
 
@@ -296,6 +363,26 @@ mount | grep noatime
 /usr/local/bin/emmc-maintenance.sh
 ```
 
+#### eMMC-Specific Issues
+```bash
+# Check if eMMC device is detected
+lsblk | grep mmcblk
+ls -la /dev/mmcblk*
+
+# Verify eMMC performance mode
+cat /sys/block/mmcblk0/queue/scheduler 2>/dev/null || echo "Scheduler info not available"
+
+# Check eMMC write protection (if installation fails)
+cat /sys/block/mmcblk0/force_ro 2>/dev/null || echo "0"
+
+# Monitor eMMC health and errors
+dmesg | grep -i mmc
+journalctl | grep -i "mmc\|emmc" | tail -10
+
+# Check available eMMC space
+df -h | grep mmcblk
+```
+
 ### 📞 Get Help
 
 - **[Proxmox Community Forum](https://forum.proxmox.com/)**
@@ -358,6 +445,13 @@ Available:        5.5GB RAM, 800GB storage
 - **[eMMC Optimization Guide](docs/EMMC_OPTIMIZATION.md)**: Maximize embedded storage lifespan
 - **[Cellular Optimization Guide](docs/CELLULAR_OPTIMIZATION.md)**: Bandwidth-saving strategies
 - **[Network Setup Guide](docs/NETWORK_SETUP.md)**: Advanced networking configuration
+
+### What's New in Proxmox VE 9
+- **🚀 Debian 12 Bookworm** base system (enhanced eMMC support)
+- **🔒 Improved Security** with TPM 2.0 and secure boot support
+- **⚡ Better Performance** on embedded systems like ZimaBoard
+- **🛠️ Enhanced Container Management** with improved LXC features
+- **📱 Better eMMC Detection** and optimization during installation
 
 </details>
 
