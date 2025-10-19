@@ -192,33 +192,18 @@ pvesm remove backup-storage 2>/dev/null || true
 pvesm add dir seafile-storage \
     --path /mnt/seafile-data \
     --content images,rootdir,backup,vztmpl \
-    --maxfiles 10 \
     --shared 0
 
 # Add backup storage pool
 pvesm add dir backup-storage \
     --path /mnt/backup-storage \
     --content backup,vztmpl,iso \
-    --maxfiles 5 \
     --shared 0
 
-# Set SSD storage as default for new containers/VMs
-echo "🔧 Setting SSD as default storage..."
-# Update datacenter storage configuration to prioritize SSD
-cat > /tmp/storage_priority.conf << 'EOF'
-# Set SSD storage as default for new containers
-storage: seafile-storage
-	path /mnt/seafile-data
-	content images,rootdir,backup,vztmpl
-	maxfiles 10
-	shared 0
-
-storage: backup-storage
-	path /mnt/backup-storage
-	content backup,vztmpl,iso
-	maxfiles 5
-	shared 0
-EOF
+# Verify Proxmox storage configuration
+echo "🔧 Verifying Proxmox storage configuration..."
+echo "Available storage pools:"
+pvesm status
 
 # Optimize SSD performance
 echo "🔧 Optimizing SSD performance..."
