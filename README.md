@@ -55,7 +55,7 @@ This homelab provides a complete network security solution designed specifically
 
 ## 🚀 Quick Start
 
-### Option 1: Proxmox VE Deployment (Recommended)
+### Option 1: Proxmox VE Deployment (Recommended) - One Command Install!
 
 1. **Install Proxmox VE on ZimaBoard 2**
    ```bash
@@ -64,17 +64,20 @@ This homelab provides a complete network security solution designed specifically
    # Access web interface at https://ZIMABOARD_IP:8006
    ```
 
-2. **Setup 2TB SSD storage (if not already done)**
+2. **One-Command Complete Setup** ⚡
    ```bash
-   # Partition and mount the 2TB SSD for NAS and backup storage
-   ./scripts/proxmox/setup-ssd-storage.sh
+   # This single command will:
+   # - Setup 2TB SSD storage
+   # - Deploy all security services (Pi-hole, Fail2ban, Wireguard, etc.)
+   # - Configure networking and firewall
+   # - Setup monitoring and NAS
+   # - Configure cellular optimization
+   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/complete-setup.sh | bash
    ```
 
-3. **Deploy security services automatically**
-   ```bash
-   # Upload and run the automated deployment script
-   ./scripts/proxmox/deploy-proxmox.sh
-   ```
+3. **Optional: Individual component setup**
+   - **Setup SSD storage only**: `curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash`
+   - **Deploy services only**: `curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/deploy-proxmox.sh | bash`
 
 4. **Access your services** (replace `ZIMABOARD_IP` with your ZimaBoard's IP):
    - **Proxmox Web UI**: `https://ZIMABOARD_IP:8006` (Main management)
@@ -85,16 +88,24 @@ This homelab provides a complete network security solution designed specifically
    - **Squid Proxy**: `http://ZIMABOARD_IP:3128` (Configure in devices for caching)
    - **Wireguard VPN**: Configuration files for mobile/remote access
 
+3. **Access services** via the same URLs as above
+
 ### Option 2: Docker Compose (Alternative)
 
-1. **Clone this repository to your ZimaBoard 2**
-2. **Navigate to the project directory**
+1. **One-Command Docker Setup** ⚡
    ```bash
-   cd zimaboard-2-home-lab
+   # This will download the repository and setup everything automatically
+   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/install.sh | bash
    ```
-3. **Run the Docker installation script**
+
+2. **Manual setup** (if preferred):
    ```bash
-   ./scripts/install/install.sh
+   # Clone repository
+   git clone https://github.com/th3cavalry/zimaboard-2-home-lab.git
+   cd zimaboard-2-home-lab
+   
+   # Run setup
+   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/install.sh | bash
    ```
 4. **Access services** via the same URLs as above
 
@@ -287,7 +298,7 @@ pct exec 106 -- freshclam  # Update virus definitions
 pct exec 106 -- systemctl status clamav-daemon
 
 # Check all service health
-./scripts/proxmox/health-check.sh
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/health-check.sh | bash
 ```
 
 ### Backup & Snapshots
@@ -303,10 +314,10 @@ vzdump 105 --mode snapshot --compress gzip  # Wireguard VPN
 vzdump 106 --mode snapshot --compress gzip  # ClamAV
 
 # Automated backup script (85% community adoption)
-./scripts/proxmox/backup-all.sh
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/backup-all.sh | bash
 
 # Seafile data backup (optimized for performance)
-./scripts/proxmox/backup-seafile-data.sh
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/backup-seafile-data.sh | bash
 
 # Restore from snapshot
 pct restore backup-file.tar.gz 102 --force  # LXC containers
@@ -563,7 +574,7 @@ For ZimaBoard 2 (16GB RAM, 32GB eMMC + 2TB SSD) with Proxmox VE:
    pct exec 100 -- logrotate -f /etc/logrotate.conf
    
    # Clean up old snapshots (automated retention)
-   ./scripts/proxmox/cleanup-snapshots.sh
+   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/cleanup-snapshots.sh | bash
    
    # Optimize SSD performance
    echo mq-deadline > /sys/block/sdb/queue/scheduler
