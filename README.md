@@ -312,20 +312,30 @@ df -h /mnt/seafile-data /mnt/backup-storage
 ```
 
 **🚀 Interactive SSD Setup (User Selectable Formatting):**
-The main setup script now provides interactive options for your 2TB SSD:
+The setup script provides multiple modes based on how you run it:
 
+**🎯 Interactive Mode (Recommended):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
+# Download and run interactively
+wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh
+bash setup-ssd-storage.sh
 ```
 
-**📋 Setup Options:**
+**📋 Interactive Setup Options:**
 1. **Fresh Format** - Completely erase and reformat (for new/empty drives) 
 2. **Use Existing Partitions** - Configure Proxmox storage with current partitions (preserves data)
 3. **Advanced Mode** - Manual partition selection with optional formatting
 4. **Exit** - Cancel setup
 
-**⚠️ Automatic Format Mode (Backwards Compatibility):**
-For automated deployments, use the AUTO_FORMAT environment variable:
+**🔄 Non-Interactive Mode (Piped):**
+```bash
+# Safe mode - uses existing partitions, preserves data
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
+```
+*Default behavior: Uses existing partitions safely, no data destruction*
+
+**⚠️ Automatic Format Mode (Destructive):**
+For automated deployments that need fresh formatting:
 ```bash
 AUTO_FORMAT=1 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
 ```
