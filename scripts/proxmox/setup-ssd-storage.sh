@@ -6,6 +6,21 @@
 
 set -e
 
+# Enable debug mode if DEBUG=1 is set
+if [[ "${DEBUG:-0}" == "1" ]]; then
+    set -x
+    echo "🐛 Debug mode enabled"
+fi
+
+# Function to handle cleanup on error
+cleanup() {
+    echo "❌ Script interrupted or failed. Cleaning up..."
+    # Unmount any partially mounted filesystems
+    umount /mnt/seafile-data 2>/dev/null || true
+    umount /mnt/backup-storage 2>/dev/null || true
+}
+trap cleanup EXIT ERR
+
 echo "📀 ZimaBoard 2 SSD Storage Setup - AUTOMATIC FORMAT"
 echo "=================================================="
 echo "⚠️  AUTOMATIC MODE: Will completely erase and reformat 2TB SSD!"
@@ -114,9 +129,12 @@ fi
 
 # Wait for system to recognize new partitions
 echo "🔧 Waiting for partition table updates..."
-sleep 5
-partprobe $SSD_DEVICE
-udevadm settle
+sleep 3
+partprobe $SSD_DEVICE 2>/dev/null || echo "⚠️ partprobe failed, continuing..."
+udevadm settle --timeout=10 2>/dev/null || echo "⚠️ udevadm settle timeout, continuing..."
+
+# Give additional time for device nodes to appear
+sleep 2
 
 # Set partition variables for fresh setup
 SSD_PART1="${SSD_DEVICE}1"
@@ -207,16 +225,44 @@ pvesm status
 
 # Optimize SSD performance
 echo "🔧 Optimizing SSD performance..."
-# Set optimal I/O scheduler for SSD
-if [[ -f /sys/block/$(basename $SSD_DEVICE)/queue/scheduler ]]; then
-    echo 'mq-deadline' > /sys/block/$(basename $SSD_DEVICE)/queue/scheduler
-    echo "Set I/O scheduler to mq-deadline for $SSD_DEVICE"
+# Set optimal I/O scheduler for SSD with proper error handling
+SSD_BASE=$(basename $SSD_DEVICE)
+SCHEDULER_PATH="/sys/block/$SSD_BASE/queue/scheduler"
+
+if [[ -f "$SCHEDULER_PATH" ]]; then
+    # Check available schedulers first
+    AVAILABLE_SCHEDULERS=$(cat "$SCHEDULER_PATH" 2>/dev/null || echo "")
+    echo "Available I/O schedulers for $SSD_DEVICE: $AVAILABLE_SCHEDULERS"
+    
+    # Try to set mq-deadline, fallback to none if not available
+    if echo "$AVAILABLE_SCHEDULERS" | grep -q "mq-deadline"; then
+        echo 'mq-deadline' > "$SCHEDULER_PATH" 2>/dev/null && \
+            echo "✅ Set I/O scheduler to mq-deadline for $SSD_DEVICE" || \
+            echo "⚠️ Failed to set mq-deadline scheduler, continuing..."
+    elif echo "$AVAILABLE_SCHEDULERS" | grep -q "deadline"; then
+        echo 'deadline' > "$SCHEDULER_PATH" 2>/dev/null && \
+            echo "✅ Set I/O scheduler to deadline for $SSD_DEVICE" || \
+            echo "⚠️ Failed to set deadline scheduler, continuing..."
+    elif echo "$AVAILABLE_SCHEDULERS" | grep -q "none"; then
+        echo 'none' > "$SCHEDULER_PATH" 2>/dev/null && \
+            echo "✅ Set I/O scheduler to none (optimal for NVMe) for $SSD_DEVICE" || \
+            echo "⚠️ Failed to set none scheduler, continuing..."
+    else
+        echo "⚠️ No optimal scheduler found, using system default"
+    fi
+else
+    echo "⚠️ Scheduler configuration not available for $SSD_DEVICE (likely NVMe - uses none by default)"
 fi
 
 # Enable TRIM support for SSD longevity
-fstrim /mnt/seafile-data
-fstrim /mnt/backup-storage
-echo "Enabled TRIM for SSD partitions"
+echo "🔧 Enabling TRIM support for SSD longevity..."
+timeout 30 fstrim /mnt/seafile-data 2>/dev/null && \
+    echo "✅ TRIM enabled for /mnt/seafile-data" || \
+    echo "⚠️ TRIM not available or failed for /mnt/seafile-data"
+
+timeout 30 fstrim /mnt/backup-storage 2>/dev/null && \
+    echo "✅ TRIM enabled for /mnt/backup-storage" || \
+    echo "⚠️ TRIM not available or failed for /mnt/backup-storage"
 
 # Add weekly TRIM to crontab for maintenance
 (crontab -l 2>/dev/null; echo "0 3 * * 0 /sbin/fstrim /mnt/seafile-data && /sbin/fstrim /mnt/backup-storage") | crontab -
@@ -255,3 +301,8 @@ echo "• noatime mount option for reduced writes"
 echo ""
 echo "🎉 Ready for homelab deployment!"
 echo "Next step: Run the complete setup script to deploy all services"
+
+# Clear the error trap on successful completion
+trap - EXIT ERR
+echo ""
+echo "✅ Script completed successfully - no errors detected"
