@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# ZimaBoard 2 SSD Storage Setup Script
+# ZimaBoard 2 SSD Storage Setup Script - AUTOMATIC FORMAT MODE
+# AUTOMATICALLY erases and reformats 2TB SSD from scratch
 # Comprehensive setup: formats, partitions, configures Proxmox storage pools, and optimizes 2TB SSD
 
 set -e
 
-echo "📀 ZimaBoard 2 SSD Storage Setup"
-echo "================================="
-echo "Comprehensive 2TB SSD setup with formatting, partitioning, and Proxmox integration..."
+echo "📀 ZimaBoard 2 SSD Storage Setup - AUTOMATIC FORMAT"
+echo "=================================================="
+echo "⚠️  AUTOMATIC MODE: Will completely erase and reformat 2TB SSD!"
+echo "Comprehensive setup with fresh formatting, partitioning, and Proxmox integration..."
 echo ""
 
 # Check if running as root
@@ -61,41 +63,55 @@ echo "Current partition table:"
 lsblk $SSD_DEVICE
 echo ""
 
-# Confirm before proceeding
-read -p "⚠️  This will ERASE all data on $SSD_DEVICE. Continue? (y/N): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ Aborted by user"
-    exit 1
-fi
+# Automatic format: Start from scratch - ERASE ALL DATA
+echo "🚨 AUTOMATIC FORMAT MODE: This will completely erase $SSD_DEVICE!"
+echo "🔧 Unmounting any existing partitions..."
+umount ${SSD_DEVICE}* 2>/dev/null || echo "No partitions were mounted"
 
-echo "🔧 Creating partition table..."
-# Create GPT partition table
+echo "🔧 Wiping existing partition table..."
+# Wipe any existing partition signatures
+wipefs -a $SSD_DEVICE
+
+echo "🔧 Creating new GPT partition table..."
+# Create fresh GPT partition table
 parted -s $SSD_DEVICE mklabel gpt
 
 # Create partitions:
-# 1TB for Seafile NAS data
+# 1TB for Seafile NAS data (homelab services)
 # 1TB for backups and expansion
-echo "🔧 Creating partitions..."
+echo "🔧 Creating fresh partitions..."
 parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
 parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
 
 # Wait for system to recognize new partitions
-sleep 2
+echo "🔧 Waiting for partition table updates..."
+sleep 5
+partprobe $SSD_DEVICE
+udevadm settle
 
-# Format partitions
-echo "🔧 Formatting partitions..."
-mkfs.ext4 -F ${SSD_DEVICE}1 -L "seafile-data"
-mkfs.ext4 -F ${SSD_DEVICE}2 -L "backup-storage"
+# Set partition variables for fresh setup
+SSD_PART1="${SSD_DEVICE}1"
+SSD_PART2="${SSD_DEVICE}2"
+
+# Format partitions with ext4
+echo "🔧 Formatting partitions with ext4..."
+mkfs.ext4 -F $SSD_PART1 -L "seafile-data" -m 1
+mkfs.ext4 -F $SSD_PART2 -L "backup-storage" -m 1
+
+echo "✅ Fresh partition setup complete!"
+echo "� New partition layout:"
+lsblk $SSD_DEVICE
+
+# Partitions are handled above based on existing vs new setup
 
 # Create mount points
 echo "🔧 Creating mount points..."
 mkdir -p /mnt/seafile-data
 mkdir -p /mnt/backup-storage
 
-# Get UUIDs for fstab
-SEAFILE_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}1)
-BACKUP_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}2)
+# Get UUIDs for fstab (using dynamic partition variables)
+SEAFILE_UUID=$(blkid -s UUID -o value $SSD_PART1)
+BACKUP_UUID=$(blkid -s UUID -o value $SSD_PART2)
 
 # Add to fstab
 echo "🔧 Adding to /etc/fstab..."
@@ -107,7 +123,13 @@ echo "UUID=$BACKUP_UUID /mnt/backup-storage ext4 defaults,noatime 0 2" >> /etc/f
 
 # Mount the partitions
 echo "🔧 Mounting partitions..."
-mount -a
+mount $SSD_PART1 /mnt/seafile-data
+mount $SSD_PART2 /mnt/backup-storage
+
+# Test mount points
+echo "🔧 Verifying mount points..."
+mountpoint -q /mnt/seafile-data && echo "✅ /mnt/seafile-data mounted successfully"
+mountpoint -q /mnt/backup-storage && echo "✅ /mnt/backup-storage mounted successfully"
 
 # Verify mounts are successful
 if ! mountpoint -q /mnt/seafile-data; then

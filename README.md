@@ -311,17 +311,20 @@ echo "✅ Manual SSD setup complete!"
 df -h /mnt/seafile-data /mnt/backup-storage
 ```
 
-**� Complete Automated SSD Setup:**
-The enhanced setup script now provides comprehensive formatting, partitioning, and configuration:
+**🚀 Automatic SSD Setup (Fresh Format):**
+The main setup script now automatically formats the 2TB SSD from scratch:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
 ```
 
-**📋 What the Enhanced Script Does:**
+**⚠️ WARNING: This script will automatically ERASE ALL DATA on your 2TB SSD!**
+
+**📋 What the Automatic Script Does:**
 - ✅ **Auto-detects** 2TB SSD (whether /dev/sda, /dev/sdb, or /dev/sdc)
-- ✅ **Creates GPT partition table** (modern, supports >2TB drives)  
-- ✅ **Formats partitions** with ext4 (optimal for SSD performance)
+- ✅ **Completely erases** existing partitions and data (fresh start)
+- ✅ **Creates fresh GPT partition table** (modern, supports >2TB drives)  
+- ✅ **Formats with ext4** (optimal for SSD performance, 1% reserved)
 - ✅ **Sets up mount points** with SSD-optimized options (noatime)
 - ✅ **Configures Proxmox storage pools** for containers/VMs/backups
 - ✅ **Creates organized directories** for different data types
