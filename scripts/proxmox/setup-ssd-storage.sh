@@ -277,24 +277,41 @@ elif [[ $SETUP_MODE == "2" ]]; then
     
     # Use lsblk with proper formatting to get clean partition names
     # Remove tree formatting characters and extract just the device names
-    PARTITIONS=($(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | sed -E 's/^[├└─│ ]+//g' | sed 's/^ *//' | head -2))
+    RAW_PARTITIONS=$(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$")
     
-    if [[ ${#PARTITIONS[@]} -lt 2 ]]; then
-        echo "❌ Error: Found ${#PARTITIONS[@]} partitions, need at least 2"
-        echo "Available partitions: ${PARTITIONS[@]}"
+    # Clean partition names more aggressively to handle all tree formatting
+    CLEAN_PARTITIONS=()
+    while IFS= read -r line; do
+        # Remove all tree characters and whitespace, extract just the device name
+        clean_name=$(echo "$line" | sed -E 's/^[├└─│ ├─└─│]*//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        if [[ -n "$clean_name" ]]; then
+            CLEAN_PARTITIONS+=("$clean_name")
+        fi
+    done <<< "$RAW_PARTITIONS"
+    
+    if [[ ${#CLEAN_PARTITIONS[@]} -lt 2 ]]; then
+        echo "❌ Error: Found ${#CLEAN_PARTITIONS[@]} partitions, need at least 2"
+        echo "Available partitions: ${CLEAN_PARTITIONS[@]}"
         echo "Current disk layout:"
         lsblk "$SSD_DEVICE"
         exit 1
     fi
     
-    SSD_PART1="/dev/${PARTITIONS[0]}"
-    SSD_PART2="/dev/${PARTITIONS[1]}"
+    SSD_PART1="/dev/${CLEAN_PARTITIONS[0]}"
+    SSD_PART2="/dev/${CLEAN_PARTITIONS[1]}"
     
     # Validate partition paths
+    if [[ "$DEBUG" == "1" ]]; then
+        echo "Debug: Raw partitions: $RAW_PARTITIONS"
+        echo "Debug: Clean partitions: ${CLEAN_PARTITIONS[@]}"
+        echo "Debug: SSD_PART1=$SSD_PART1, SSD_PART2=$SSD_PART2"
+    fi
+    
     for part in $SSD_PART1 $SSD_PART2; do
         if [[ ! -b "$part" ]]; then
             echo "❌ Error: Invalid partition path: $part"
-            echo "Debug: Raw partition names: ${PARTITIONS[@]}"
+            echo "Debug: Clean partition names: ${CLEAN_PARTITIONS[@]}"
+            echo "Current disk layout:"
             lsblk "$SSD_DEVICE"
             exit 1
         fi
@@ -342,7 +359,15 @@ elif [[ $SETUP_MODE == "3" ]]; then
     echo ""
     
     # Get available partitions with clean formatting
-    AVAILABLE_PARTS=($(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | sed -E 's/^[├└─│ ]+//g' | sed 's/^ *//'))
+    RAW_PARTS=$(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$")
+    AVAILABLE_PARTS=()
+    while IFS= read -r line; do
+        # Remove all tree characters and whitespace, extract just the device name
+        clean_name=$(echo "$line" | sed -E 's/^[├└─│ ├─└─│]*//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+        if [[ -n "$clean_name" ]]; then
+            AVAILABLE_PARTS+=("$clean_name")
+        fi
+    done <<< "$RAW_PARTS"
     
     if [[ ${#AVAILABLE_PARTS[@]} -eq 0 ]]; then
         echo "❌ No partitions found. Creating new partitions..."
