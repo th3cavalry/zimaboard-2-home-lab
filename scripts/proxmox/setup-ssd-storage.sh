@@ -125,7 +125,13 @@ echo ""
 if [[ "${AUTO_FORMAT:-0}" == "1" ]]; then
     echo "🚨 AUTO_FORMAT=1 detected - Using automatic fresh format mode"
     SETUP_MODE="1"
+elif [[ ! -t 0 ]]; then
+    # Non-interactive mode (piped input) - default to existing partitions mode for safety
+    echo "🔄 Non-interactive mode detected - Using existing partitions mode (safest option)"
+    echo "To force fresh format in non-interactive mode, use: AUTO_FORMAT=1"
+    SETUP_MODE="2"
 else
+    # Interactive mode
     while true; do
         read -p "Select setup mode [1-4]: " SETUP_MODE
         case $SETUP_MODE in
@@ -148,6 +154,15 @@ case $SETUP_MODE in
             echo "⚠️  WARNING: Existing data detected on this drive!"
             echo "This will permanently delete all data on $SSD_DEVICE"
             echo ""
+            
+            # Handle non-interactive mode
+            if [[ ! -t 0 ]]; then
+                echo "❌ Non-interactive mode with existing data detected!"
+                echo "Cannot safely proceed without user confirmation."
+                echo "Use AUTO_FORMAT=1 environment variable to force formatting."
+                exit 1
+            fi
+            
             read -p "Type 'ERASE' to confirm complete data deletion: " confirm
             if [[ "$confirm" != "ERASE" ]]; then
                 echo "❌ Operation cancelled by user"
@@ -168,6 +183,11 @@ case $SETUP_MODE in
         ;;
     3)
         echo "🔧 ADVANCED MODE: Manual configuration"
+        if [[ ! -t 0 ]]; then
+            echo "❌ Advanced mode requires interactive input"
+            echo "Falling back to existing partitions mode for non-interactive execution"
+            SETUP_MODE="2"
+        fi
         FORMAT_DRIVE=false  # Will be set based on user choices below
         ;;
     4)
@@ -202,14 +222,16 @@ if [[ $FORMAT_DRIVE == true ]]; then
     else
         echo "Using fdisk for partitioning..."
         # Create GPT partition table with fdisk
-        fdisk $SSD_DEVICE << EOF
+        fdisk $SSD_DEVICE << 'EOF'
 g
 n
 1
 
+
 +950G
 n
 2
+
 
 
 w
@@ -262,7 +284,16 @@ elif [[ $SETUP_MODE == "2" ]]; then
         FS_TYPE=$(lsblk -n -o FSTYPE "$part" 2>/dev/null || echo "")
         if [[ -z "$FS_TYPE" || "$FS_TYPE" != "ext4" ]]; then
             echo "⚠️  Partition $part is not ext4 formatted"
-            read -p "Format $part as ext4? [y/N]: " format_confirm
+            
+            # Handle non-interactive mode - default to no formatting (preserve data)
+            if [[ ! -t 0 ]]; then
+                echo "🔄 Non-interactive mode: Skipping formatting to preserve data"
+                echo "   Partition will be used as-is (may cause issues if not compatible)"
+                format_confirm="n"
+            else
+                read -p "Format $part as ext4? [y/N]: " format_confirm
+            fi
+            
             if [[ "$format_confirm" =~ ^[Yy] ]]; then
                 echo "🔧 Formatting $part as ext4..."
                 umount "$part" 2>/dev/null || true
