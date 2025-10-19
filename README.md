@@ -311,10 +311,30 @@ echo "✅ Manual SSD setup complete!"
 df -h /mnt/seafile-data /mnt/backup-storage
 ```
 
-**🔄 Updated Automated Setup:**
-The setup script has been updated to automatically detect SSD devices dynamically. Try it again:
+**� Complete Automated SSD Setup:**
+The enhanced setup script now provides comprehensive formatting, partitioning, and configuration:
+
 ```bash
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
+```
+
+**📋 What the Enhanced Script Does:**
+- ✅ **Auto-detects** 2TB SSD (whether /dev/sda, /dev/sdb, or /dev/sdc)
+- ✅ **Creates GPT partition table** (modern, supports >2TB drives)  
+- ✅ **Formats partitions** with ext4 (optimal for SSD performance)
+- ✅ **Sets up mount points** with SSD-optimized options (noatime)
+- ✅ **Configures Proxmox storage pools** for containers/VMs/backups
+- ✅ **Creates organized directories** for different data types
+- ✅ **Applies performance optimizations** (I/O scheduler, TRIM support)
+- ✅ **Sets proper permissions** and ownership for security
+- ✅ **Schedules maintenance** (weekly TRIM for SSD longevity)
+- ✅ **Verifies setup** with comprehensive testing
+
+**🛠️ Format-Only Script (Advanced Users):**
+If you want to format and partition the drive without Proxmox configuration:
+```bash
+# This script only handles the formatting and partitioning
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/format-ssd-only.sh | bash
 ```
 
 #### 6️⃣ Deploy Complete Homelab
