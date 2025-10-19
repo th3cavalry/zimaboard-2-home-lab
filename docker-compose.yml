@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # Unbound DNS Resolver (recursive, secure)
+  unbound:
+    image: mvance/unbound:latest
+    container_name: unbound
+    restart: unless-stopped
+    ports:
+      - "5335:53/tcp"
+      - "5335:53/udp"
+    volumes:
+      - ./config/unbound/unbound.conf:/opt/unbound/etc/unbound/unbound.conf:ro
+      - ./data/unbound:/opt/unbound/etc/unbound/var
+    environment:
+      - TZ=America/New_York
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.2
+    healthcheck:
+      test: ["CMD", "drill", "@127.0.0.1", "google.com"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Pi-hole DNS Sinkhole & DHCP
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "8080:80/tcp"
+      - "8443:443/tcp"
+    environment:
+      TZ: 'America/New_York'
+      WEBPASSWORD: 'admin123'
+      PIHOLE_DNS_: '172.20.0.2#5335'
+      DNSSEC: 'true'
+      DNSMASQ_LISTENING: 'all'
+      IPv6: 'false'
+      TEMPERATUREUNIT: 'f'
+      WEBUIBOXEDLAYOUT: 'boxed'
+      QUERY_LOGGING: 'true'
+      INSTALL_WEB_SERVER: 'true'
+      INSTALL_WEB_INTERFACE: 'true'
+      LIGHTTPD_ENABLED: 'true'
+    volumes:
+      - ./data/pihole/etc-pihole:/etc/pihole
+      - ./data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+      - ./logs/pihole:/var/log
+    depends_on:
+      - unbound
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.3
+    healthcheck:
+      test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ClamAV Antivirus
+  clamav:
+    image: clamav/clamav:latest
+    container_name: clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - ./data/clamav:/var/lib/clamav
+      - ./config/clamav:/etc/clamav
+      - ./logs/clamav:/var/log/clamav
+      - /home/th3cavalry:/scan/home:ro
+    environment:
+      - CLAMAV_NO_FRESHCLAM=false
+      - FRESHCLAM_DAEMON_ENABLED=true
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.4
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+
+  # Suricata IDS/IPS
+  suricata:
+    image: jasonish/suricata:latest
+    container_name: suricata
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+    volumes:
+      - ./config/suricata/suricata.yaml:/etc/suricata/suricata.yaml
+      - ./config/suricata/rules:/var/lib/suricata/rules
+      - ./logs/suricata:/var/log/suricata
+      - ./data/suricata:/var/lib/suricata
+    environment:
+      - SURICATA_OPTIONS=-i any --user suricata
+    command: ["/usr/bin/suricata", "-c", "/etc/suricata/suricata.yaml", "-i", "any"]
+    depends_on:
+      - pihole
+
+  # Nginx Reverse Proxy & Web Dashboard
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      - ./config/nginx/html:/etc/nginx/html:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - pihole
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.5
+
+  # Portainer for Container Management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/portainer:/data
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.6
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.7
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./config/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    depends_on:
+      - prometheus
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.8
+
+networks:
+  homelab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+volumes:
+  pihole_data:
+  unbound_data:
+  clamav_data:
+  suricata_data:
+  prometheus_data:
+  grafana_data:
+  portainer_data:
