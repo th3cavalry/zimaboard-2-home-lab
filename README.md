@@ -10,7 +10,7 @@ This homelab provides a complete network security solution designed specifically
 - **DNS Resolution & Ad-blocking**: Pi-hole + Unbound DNS (LXC Container) - 95% community adoption
 - **Intrusion Prevention**: Fail2ban with SSH/service protection (LXC Container) - Essential security
 - **Network Storage**: Seafile NAS with 1TB dedicated storage (LXC Container) - Optimized for limited hardware
-- **Web Caching**: Squid proxy with gaming/streaming optimization (LXC Container) - 80% cellular user adoption
+- **Web Caching**: Squid proxy with gaming/streaming optimization + advanced streaming ad-blocking (LXC Container) - 80% cellular user adoption
 - **Monitoring**: Netdata real-time metrics (LXC Container) - Zero-config, lightweight
 - **VPN Access**: Wireguard secure remote access (LXC Container) - Modern VPN standard
 - **Virus Protection**: ClamAV with real-time scanning (LXC Container) - Background security
@@ -115,7 +115,7 @@ This homelab provides a complete network security solution designed specifically
 | Service | Type | Resources | Purpose | Web Interface | Optimization |
 |---------|------|-----------|---------|---------------|--------------|
 | **Seafile** | LXC | 2GB RAM, 1TB Disk | High-performance NAS | ✅ Port 8081 | Limited hardware optimized |
-| **Squid Proxy** | LXC | 2GB RAM, 200GB Disk | Cellular bandwidth optimization | ✅ Port 3128 | 50-75% savings |
+| **Squid Proxy** | LXC | 2GB RAM, 200GB Disk | Cellular bandwidth + streaming ad-blocking | ✅ Port 3128 | 50-75% savings + ads blocked |
 | **Netdata** | LXC | 512MB RAM, 8GB Disk | Real-time monitoring | ✅ Port 19999 | Zero-config lightweight |
 | **ClamAV** | LXC | 1GB RAM, 8GB Disk | Background virus scanning | ❌ | Resource-optimized |
 | **Proxmox VE** | Host | - | Hypervisor management | ✅ Port 8006 | 45% advanced users |
@@ -204,11 +204,19 @@ For optimal security and ad-blocking:
 ### Cellular Caching Configuration
 
 **Squid Proxy Setup**:
-- **Cache Storage**: 50GB dedicated cache partition
+- **Cache Storage**: 200GB dedicated cache partition (enhanced from community recommendations)
 - **Gaming Optimization**: Steam, Epic Games, Origin content caching
-- **Streaming Cache**: YouTube, Netflix, Twitch video segments
+- **Streaming Cache**: YouTube, Netflix, Twitch video segments  
 - **Software Updates**: Windows, macOS, Linux update caching
 - **CDN Content**: Akamai, Cloudflare, AWS content caching
+- **🎯 Advanced Streaming Ad-Blocking**: Enhanced filtering for Netflix, Hulu, Amazon Prime, YouTube (30-95% effectiveness)
+
+**Streaming Service Ad-Blocking**:
+- **Enhanced Pi-hole**: Streaming-specific blocklists and regex patterns
+- **Content Filtering**: Squid proxy with deep packet inspection for ads
+- **Multi-Layer Protection**: DNS + Proxy + Client-side filtering
+- **Platform Coverage**: Netflix, Hulu, Amazon Prime, YouTube, Twitch
+- **Effectiveness**: 30-95% ad reduction depending on platform and technique
 
 **Bandwidth Optimization**:
 - **Cache Hit Ratio**: Target 60-80% for repeated content
@@ -597,6 +605,7 @@ For ZimaBoard 2 (16GB RAM, 32GB eMMC + 2TB SSD) with Proxmox VE:
 #### Research Documents
 - **[Homelab Usage Research](docs/homelab-usage-research.md)** - Comprehensive analysis of 200+ homelab configurations from blogs, podcasts, and communities
 - **[Research Summary & Recommendations](docs/research-summary.md)** - Key findings and actionable recommendations based on community research
+- **[Advanced Streaming Ad-Blocking](docs/streaming-ad-blocking.md)** - Techniques for blocking ads in Netflix, Hulu, and other streaming services
 
 #### Key Findings
 - **Your setup is 90% aligned** with community best practices
@@ -604,6 +613,7 @@ For ZimaBoard 2 (16GB RAM, 32GB eMMC + 2TB SSD) with Proxmox VE:
 - **Proxmox VE choice validated** - 45% of advanced users prefer this platform
 - **Small form factor trend confirmed** - 40% of homelabs use similar hardware
 - **Cellular optimization patterns** - Documented from Self-Hosted podcast and technical blogs
+- **Advanced streaming ad-blocking** - Comprehensive techniques for Netflix, Hulu, Amazon Prime, YouTube
 
 #### Priority Recommendations
 1. **Implement Squid proxy** for cellular bandwidth optimization (CRITICAL)
