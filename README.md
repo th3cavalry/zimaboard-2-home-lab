@@ -36,8 +36,9 @@ This homelab provides enterprise-grade security for your home network, optimized
 ### 📊 Storage & Performance  
 - **☁️ Personal Cloud**: Seafile NAS (1TB secure file storage)
 - **⚡ Bandwidth Optimization**: Squid proxy (50-75% cellular savings)
-- **� Real-time Monitoring**: Netdata (zero-config system monitoring)
-- **� Automatic Backups**: Proxmox snapshots & data protection
+- **📊 Real-time Monitoring**: Netdata (zero-config system monitoring)
+- **💾 Automatic Backups**: Proxmox snapshots & data protection
+- **🔧 eMMC Optimization**: Longevity-focused storage optimization for embedded flash
 
 ### 🎯 Why This Setup?
 - **✅ One Command Install**: Complete deployment in minutes
@@ -279,6 +280,22 @@ pct exec 105 -- systemctl status wg-quick@wg0
 pct exec 105 -- systemctl restart wg-quick@wg0
 ```
 
+#### eMMC Optimization Verification
+```bash
+# Test if eMMC optimizations are properly applied
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/test-emmc-optimization.sh | bash
+
+# Check eMMC health manually
+cat /var/log/emmc-health.log
+
+# Check swappiness and mount options
+cat /proc/sys/vm/swappiness
+mount | grep noatime
+
+# Run manual maintenance
+/usr/local/bin/emmc-maintenance.sh
+```
+
 ### 📞 Get Help
 
 - **[Proxmox Community Forum](https://forum.proxmox.com/)**
@@ -336,6 +353,11 @@ Available:        5.5GB RAM, 800GB storage
 - **Minimum**: ZimaBoard 2, 16GB RAM, 32GB storage
 - **Recommended**: + 2TB SSD for optimal performance
 - **Network**: Ethernet connection to router/cellular gateway
+
+### Documentation
+- **[eMMC Optimization Guide](docs/EMMC_OPTIMIZATION.md)**: Maximize embedded storage lifespan
+- **[Cellular Optimization Guide](docs/CELLULAR_OPTIMIZATION.md)**: Bandwidth-saving strategies
+- **[Network Setup Guide](docs/NETWORK_SETUP.md)**: Advanced networking configuration
 
 </details>
 

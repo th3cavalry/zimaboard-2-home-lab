@@ -11,6 +11,7 @@ echo "🚀 ZimaBoard 2 Homelab - Complete Setup"
 echo "========================================="
 echo "This script will set up your complete homelab environment:"
 echo "- 2TB SSD storage configuration"
+echo "- eMMC optimization for longevity"
 echo "- Proxmox VE containers and services"
 echo "- DNS filtering, ad-blocking, VPN, monitoring"
 echo "- Cellular optimization and caching"
@@ -30,6 +31,12 @@ echo ""
 echo "📀 Step 1: Setting up 2TB SSD storage..."
 curl -sSL "${GITHUB_RAW_URL}/scripts/proxmox/setup-ssd-storage.sh" | bash
 echo "✅ SSD storage setup completed"
+echo ""
+
+# Step 1.5: Optimize eMMC for longevity
+echo "🔧 Step 1.5: Optimizing eMMC storage for longevity..."
+curl -sSL "${GITHUB_RAW_URL}/scripts/proxmox/optimize-emmc.sh" | bash
+echo "✅ eMMC optimization completed"
 echo ""
 
 # Step 2: Deploy all services
@@ -69,6 +76,7 @@ echo "• Real-time monitoring"
 echo "• Virus scanning (ClamAV)"
 echo "• Cellular bandwidth optimization"
 echo "• Streaming service ad-blocking"
+echo "• eMMC storage optimization for longevity"
 echo ""
 echo "📚 For detailed documentation and management:"
 echo "https://github.com/th3cavalry/zimaboard-2-home-lab"
