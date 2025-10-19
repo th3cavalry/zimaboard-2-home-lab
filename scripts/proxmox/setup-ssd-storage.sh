@@ -265,15 +265,40 @@ elif [[ $SETUP_MODE == "2" ]]; then
     echo "🔄 Using existing partitions..."
     
     # Automatically detect the first two partitions
-    PARTITIONS=($(lsblk -n -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | head -2))
+    echo "🔍 Detecting partitions on $SSD_DEVICE..."
+    
+    # Debug: Show raw lsblk output
+    if [[ "${DEBUG:-0}" == "1" ]]; then
+        echo "Debug - Raw lsblk output:"
+        lsblk "$SSD_DEVICE"
+        echo "Debug - Partition detection:"
+        lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$"
+    fi
+    
+    # Use lsblk with proper formatting to get clean partition names
+    # Remove tree formatting characters and extract just the device names
+    PARTITIONS=($(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | sed -E 's/^[├└─│ ]+//g' | sed 's/^ *//' | head -2))
     
     if [[ ${#PARTITIONS[@]} -lt 2 ]]; then
         echo "❌ Error: Found ${#PARTITIONS[@]} partitions, need at least 2"
+        echo "Available partitions: ${PARTITIONS[@]}"
+        echo "Current disk layout:"
+        lsblk "$SSD_DEVICE"
         exit 1
     fi
     
     SSD_PART1="/dev/${PARTITIONS[0]}"
     SSD_PART2="/dev/${PARTITIONS[1]}"
+    
+    # Validate partition paths
+    for part in $SSD_PART1 $SSD_PART2; do
+        if [[ ! -b "$part" ]]; then
+            echo "❌ Error: Invalid partition path: $part"
+            echo "Debug: Raw partition names: ${PARTITIONS[@]}"
+            lsblk "$SSD_DEVICE"
+            exit 1
+        fi
+    done
     
     echo "Selected partitions:"
     echo "• Seafile data: $SSD_PART1"
@@ -316,8 +341,8 @@ elif [[ $SETUP_MODE == "3" ]]; then
     lsblk $SSD_DEVICE
     echo ""
     
-    # Get available partitions
-    AVAILABLE_PARTS=($(lsblk -n -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$"))
+    # Get available partitions with clean formatting
+    AVAILABLE_PARTS=($(lsblk -ln -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | sed -E 's/^[├└─│ ]+//g' | sed 's/^ *//'))
     
     if [[ ${#AVAILABLE_PARTS[@]} -eq 0 ]]; then
         echo "❌ No partitions found. Creating new partitions..."
