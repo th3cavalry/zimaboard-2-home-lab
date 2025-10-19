@@ -1,6 +1,6 @@
 # 🏠 ZimaBoard 2 Security Homelab - Proxmox Edition
 
-**The complete, one-command security homelab for ZimaBoard 2 + cellular internet**
+**The complete, tested, one-command security homelab for ZimaBoard 2 + cellular internet**
 
 [![Proxmox VE](https://img.shields.io/badge/Proxmox-VE%209.0-orange)](https://proxmox.com/)
 [![ZimaBoard 2](https://img.shields.io/badge/ZimaBoard-2%20Supported-blue)](https://www.zimaspace.com/)
@@ -19,6 +19,29 @@
 3. **Access your services** at: `http://YOUR-ZIMABOARD-IP` 🎉
 
 **That's it!** Your complete security homelab is ready.
+
+## 🎯 Deployment Status
+
+**✅ SUCCESSFULLY TESTED & DEPLOYED (October 2025)**
+
+This configuration has been fully tested and deployed on ZimaBoard 2 with:
+- **Proxmox VE 9.0.3** running on 32GB eMMC
+- **6 LXC containers** providing complete homelab services
+- **2TB SSD storage** optimized for all data operations
+- **Real-world validation** of eMMC longevity optimizations
+
+**Current Container Status:**
+```
+VMID    Status    Name        Purpose
+100     ✅        pihole      DNS filtering & ad-blocking
+101     ✅        seafile     Personal cloud storage  
+102     ✅        wireguard   VPN server
+103     ✅        squid       Bandwidth optimization
+104     ✅        netdata     System monitoring
+105     ✅        nginx       Web services
+```
+
+**Access your deployed services at:** `http://192.168.8.2:PORT`
 
 ---
 
@@ -44,7 +67,7 @@ This homelab provides enterprise-grade security for your home network, optimized
 - **✅ One Command Install**: Complete deployment in minutes
 - **✅ Cellular Optimized**: Saves 50-75% bandwidth on cellular internet
 - **✅ Enterprise Grade**: Proxmox VE professional virtualization
-- **✅ Community Validated**: Based on 200+ homelab configurations
+- **✅ Real-World Tested**: Fully deployed and validated on ZimaBoard 2 hardware
 - **✅ 2025 Optimized**: Latest best practices and security standards
 
 ---
@@ -179,8 +202,8 @@ After Proxmox installation, the 2TB SSD will be configured as:
 - **Cache**: Squid cache and other temporary data on SSD
 
 - **Network Configuration**:
-  - Hostname: **zimaboard.local**
-  - IP Address: **192.168.8.100/24** (static recommended)
+  - Hostname: **zimaboard.local** or **pve**
+  - IP Address: **192.168.8.2/24** or **192.168.8.100/24** (static recommended)
   - Gateway: **192.168.8.1** (your router)
   - DNS: **1.1.1.1** (temporary, will use Pi-hole later)
 - Set strong **root password**
@@ -203,11 +226,13 @@ Based on real-world testing data with OS-only installation:
 #### 5️⃣ Initial Configuration
 ```bash
 # Access Proxmox VE 9 web interface
-# Navigate to: https://192.168.8.100:8006
+# Navigate to: https://192.168.8.2:8006 (or your ZimaBoard's IP)
 # Login: root / (your-password)
 
 # SSH into Proxmox for initial setup
-ssh root@192.168.8.100
+ssh root@192.168.8.2
+# or if you used a different IP during installation:
+# ssh root@192.168.8.100
 
 # Update system and configure repositories (Proxmox VE 9)
 apt update && apt upgrade -y
@@ -386,6 +411,38 @@ The complete setup automatically includes:
 - **2TB SSD**: All containers, VMs, logs, backups, cache, and user data
 - **Result**: eMMC writes reduced by 90%+, maximum lifespan achieved
 
+**🔍 Deployment Verification:**
+After running the complete setup, verify your deployment:
+```bash
+# SSH into your ZimaBoard
+ssh root@192.168.8.2
+
+# Check all containers are running
+pct list
+
+# Verify storage configuration  
+pvesm status
+
+# Test services
+curl -I http://192.168.8.2:8080/admin    # Pi-hole admin
+curl -I http://192.168.8.2:8000          # Seafile
+curl -I http://192.168.8.2               # Nginx
+```
+
+**📋 Post-Deployment Checklist:**
+```markdown
+- [ ] Change Pi-hole admin password: `pct exec 100 -- pihole -a -p newpassword`
+- [ ] Create Seafile admin user at http://192.168.8.2:8000
+- [ ] Configure router DNS to point to 192.168.8.2 (network-wide ad-blocking)
+- [ ] Set up devices to use Squid proxy (192.168.8.2:3128)
+- [ ] Generate Wireguard client configs for mobile devices
+- [ ] Test VPN connection from external network
+- [ ] Configure automated backups schedule
+- [ ] Enable Proxmox firewall and configure rules
+- [ ] Set up external access (port forwarding) if needed
+- [ ] Document your specific network configuration
+```
+
 ---
 
 ## 🌐 Services & Access
@@ -395,29 +452,30 @@ Once installed, access your services at these URLs (replace `YOUR-IP` with your 
 ### 🎛️ Management & Monitoring
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Proxmox Management** | `https://YOUR-IP:8006` | Main system management |
-| **Dashboard** | `http://YOUR-IP` | Unified service dashboard |
-| **System Monitoring** | `http://YOUR-IP:19999` | Real-time performance metrics |
+| **Proxmox Management** | `https://192.168.8.2:8006` | Main system management |
+| **Nginx Web Server** | `http://192.168.8.2` | Reverse proxy dashboard |
+| **System Status** | SSH access | Real-time container monitoring |
 
 ### 🛡️ Security Services  
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **DNS Ad-Blocking** | `http://YOUR-IP:8080/admin` | Pi-hole management |
-| **VPN Access** | Configuration files | Wireguard mobile VPN |
+| **Pi-hole DNS Admin** | `http://192.168.8.2:8080/admin` | DNS filtering & ad-blocking |
+| **Wireguard VPN** | Container 102 configs | Secure mobile access |
 
 ### 📊 Storage & Optimization
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Personal Cloud** | `http://YOUR-IP:8081` | Seafile file storage |
-| **Proxy Settings** | `YOUR-IP:3128` | Configure in devices for caching |
+| **Seafile Personal Cloud** | `http://192.168.8.2:8000` | Private file storage & sync |
+| **Squid Proxy** | `192.168.8.2:3128` | Cellular bandwidth optimization |
 
 ### 🔑 Default Credentials
 **⚠️ CHANGE THESE IMMEDIATELY AFTER INSTALLATION**
 
 - **Proxmox VE**: root / (set during installation)
-- **Pi-hole**: admin / admin123  
-- **Seafile**: admin / admin123
-- **Wireguard**: Key-based (secure by default)
+- **Pi-hole**: admin / admin123 (change via: `pihole -a -p`)
+- **Seafile**: Create admin user on first login at http://192.168.8.2:8000
+- **Wireguard**: Key-based authentication (secure by default)
+- **SSH Access**: root@192.168.8.2 (Proxmox credentials)
 
 ---
 
@@ -425,20 +483,30 @@ Once installed, access your services at these URLs (replace `YOUR-IP` with your 
 
 ### 🌐 Network Setup with GL.iNet X3000
 
-**Simple 3-step network configuration:**
+**📖 Complete Setup Guide**: [GL.iNet X3000 Configuration Guide](docs/network/gl-inet-x3000-setup.md)
+
+**Quick 3-step configuration:**
 
 1. **Connect** ZimaBoard 2 to GL.iNet X3000 via Ethernet
-2. **Configure GL.iNet X3000**:
-   - Set DNS to ZimaBoard IP: `192.168.8.100`
-   - Optional: Set ZimaBoard as DMZ host
-   - Optional: Enable UPnP for port forwarding
-3. **Configure ZimaBoard** (optional static IP):
+2. **Configure GL.iNet X3000** (access via `192.168.8.1`):
+   - Set **Primary DNS**: `192.168.8.2` (ZimaBoard Pi-hole)
+   - Set **DHCP Reservation**: `192.168.8.2` for ZimaBoard
+   - **Optional**: Enable port forwarding for external access
+3. **Configure ZimaBoard** static IP:
    ```bash
-   nmcli con mod "Wired connection 1" ipv4.addresses "192.168.8.100/24"
+   nmcli con mod "Wired connection 1" ipv4.addresses "192.168.8.2/24"
    nmcli con mod "Wired connection 1" ipv4.gateway "192.168.8.1" 
+   nmcli con mod "Wired connection 1" ipv4.dns "127.0.0.1"
    nmcli con mod "Wired connection 1" ipv4.method manual
    nmcli con up "Wired connection 1"
    ```
+
+**🎯 Benefits of This Setup:**
+- **Network-wide ad blocking** via Pi-hole DNS
+- **40-75% bandwidth savings** with Squid proxy caching
+- **Professional QoS** prioritizing ZimaBoard traffic
+- **Secure remote access** via Wireguard VPN
+- **Real-time monitoring** of all network activity
 
 ### 📱 Cellular Optimization Features
 
@@ -456,6 +524,11 @@ Once installed, access your services at these URLs (replace `YOUR-IP` with your 
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/health-check.sh | bash
 ```
 
+**Verify complete deployment:**
+```bash
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/verify-deployment.sh | bash
+```
+
 **Create system backup:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/backup-all.sh | bash
@@ -466,7 +539,9 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 pct list                    # List all containers
 pct start 100              # Start Pi-hole  
 pct exec 100 -- pihole -g  # Update Pi-hole blocklists
-pct exec 105 -- wg show    # Check VPN status
+pct exec 102 -- wg show    # Check VPN status
+pct exec 101 -- systemctl status seafile  # Check Seafile status
+pct exec 103 -- systemctl status squid    # Check proxy status
 ```
 
 ---
@@ -515,11 +590,14 @@ pct restart 100
 #### VPN Connection Issues
 ```bash
 # Check Wireguard status
-pct exec 105 -- wg show
-pct exec 105 -- systemctl status wg-quick@wg0
+pct exec 102 -- wg show
+pct exec 102 -- systemctl status wg-quick@wg0
 
 # Restart VPN service
-pct exec 105 -- systemctl restart wg-quick@wg0
+pct exec 102 -- systemctl restart wg-quick@wg0
+
+# Generate new client config
+pct exec 102 -- cat /etc/wireguard/client.conf
 ```
 
 #### eMMC Optimization Verification
@@ -560,6 +638,52 @@ for i in $(pct list | awk 'NR>1 {print $1}'); do
   echo "Container $i storage:"
   pct config $i | grep rootfs
 done
+```
+
+#### Service-Specific Troubleshooting
+
+**Pi-hole Issues:**
+```bash
+# Fix Pi-hole installation issues
+pct exec 100 -- bash -c "
+  systemctl stop systemd-resolved
+  systemctl disable systemd-resolved
+  pihole reconfigure
+  systemctl restart pihole-FTL
+"
+
+# Reset Pi-hole password
+pct exec 100 -- pihole -a -p newpassword
+```
+
+**Seafile Connection Problems:**
+```bash
+# Check Seafile server status
+pct exec 101 -- systemctl status seafile
+
+# Restart Seafile services
+pct exec 101 -- bash -c "
+  cd /opt/seafile/seafile-server-latest
+  ./seafile.sh restart
+  ./seahub.sh restart
+"
+
+# Check Seafile logs
+pct exec 101 -- tail -f /opt/seafile/logs/seafile.log
+```
+
+**Wireguard Configuration:**
+```bash
+# Generate new Wireguard client config
+pct exec 102 -- bash -c "
+  cd /etc/wireguard
+  # Update client.conf with your external IP
+  sed -i 's/YOUR_ZIMABOARD_IP/192.168.8.2/g' client.conf
+  cat client.conf
+"
+
+# Check Wireguard interface status
+pct exec 102 -- ip addr show wg0
 ```
 
 #### Setup Script Shows "SSD device /dev/sdb not found"
@@ -747,16 +871,19 @@ apt install -y htop iotop curl wget git nano
 ### Optimized Resource Allocation (16GB RAM + 2TB SSD)
 ```
 Proxmox Host:     2GB RAM, 24GB eMMC (OS only)
-Pi-hole/DNS:      1GB RAM, 8GB SSD storage  
-Seafile NAS:      2GB RAM, 1TB SSD storage
-Squid Proxy:      2GB RAM, 200GB SSD storage
-Netdata:          512MB RAM, 8GB SSD storage
-Fail2ban:         256MB RAM, 2GB SSD storage
-Wireguard:        256MB RAM, 2GB SSD storage
-ClamAV:           1GB RAM, 8GB SSD storage
-Nginx:            512MB RAM, 4GB SSD storage
-Available:        5.5GB RAM, 1.5TB SSD storage
+Pi-hole/DNS:      1GB RAM, Container 100 (DNS filtering)  
+Seafile NAS:      2GB RAM, Container 101 (Personal cloud)
+Wireguard VPN:    512MB RAM, Container 102 (VPN server)
+Squid Proxy:      1GB RAM, Container 103 (Bandwidth optimization)
+Netdata Monitor:  512MB RAM, Container 104 (System monitoring)
+Nginx Proxy:      512MB RAM, Container 105 (Web services)
+Available:        8.5GB RAM, 1.5TB+ SSD storage
 eMMC Usage:       24GB used, 8GB safety margin
+
+Storage Distribution:
+- seafile-storage: 1TB (Container & VM storage)
+- backup-storage:  1TB (Automated backups)
+- eMMC writes reduced by 90%+ (OS-only configuration)
 ```
 
 ### Hardware Requirements
@@ -769,6 +896,7 @@ eMMC Usage:       24GB used, 8GB safety margin
 - **[eMMC Optimization Guide](docs/EMMC_OPTIMIZATION.md)**: Maximize embedded storage lifespan
 - **[Cellular Optimization Guide](docs/CELLULAR_OPTIMIZATION.md)**: Bandwidth-saving strategies
 - **[Network Setup Guide](docs/NETWORK_SETUP.md)**: Advanced networking configuration
+- **[GL.iNet X3000 Setup](docs/network/gl-inet-x3000-setup.md)**: Complete X3000 cellular router configuration
 
 ### What's New in Proxmox VE 9
 - **🚀 Debian 12 Bookworm** base system (enhanced eMMC support)
@@ -864,9 +992,20 @@ qm set 200 --balloon 1024
 
 This project is licensed under the **MIT License**.
 
-**⚠️ Disclaimer**: This homelab setup is for educational and personal use. Always follow security best practices and comply with local laws when implementing network security solutions.
+**⚠️ Disclaimer**: This project is for educational and personal use. Always follow security best practices and comply with local laws when implementing network security solutions.
 
 **Proxmox VE** is a production-ready platform - this configuration provides enterprise-grade virtualization capabilities on your ZimaBoard 2.
+
+---
+
+## 📚 Additional Documentation
+
+For comprehensive information about this deployment:
+
+- **[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md)** - Real-time system status and detailed service information
+- **[CHANGELOG.md](CHANGELOG.md)** - Complete deployment history and technical achievements  
+- **[scripts/proxmox/verify-deployment.sh](scripts/proxmox/verify-deployment.sh)** - Comprehensive system verification script
+- **[docs/](docs/)** - Detailed research, comparisons, and technical documentation
 
 ---
 
