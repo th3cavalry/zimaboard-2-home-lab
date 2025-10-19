@@ -27,13 +27,13 @@ nmcli con up "Wired connection 1"
 ```bash
 ping 192.168.8.1    # X3000 gateway
 ping 8.8.8.8        # Internet
-curl http://192.168.8.2:8080/admin  # Pi-hole test
+curl http://192.168.8.100/admin  # Pi-hole test
 ```
 
 ## 🎯 Critical X3000 Settings
 
 ### **DNS Configuration:**
-- **Primary DNS**: `192.168.8.2` (Pi-hole)
+- **Primary DNS**: `192.168.8.100` (Pi-hole)
 - **Secondary DNS**: `1.1.1.1` (backup)
 - **DNS Rebinding Protection**: **DISABLED**
 
@@ -86,9 +86,9 @@ curl http://192.168.8.2:8080/admin  # Pi-hole test
 | Service | Internal | External | Protocol |
 |---------|----------|----------|----------|
 | **Proxmox** | `192.168.8.2:8006` | `8006` | TCP |
-| **Pi-hole** | `192.168.8.2:8080` | `8080` | TCP |
-| **Seafile** | `192.168.8.2:8000` | `8000` | TCP |
-| **Wireguard** | `192.168.8.2:51820` | `51820` | UDP |
+| **Pi-hole** | `192.168.8.100/admin` | `8080` | TCP |
+| **Seafile** | `192.168.8.101:8000` | `8000` | TCP |
+| **Wireguard** | `192.168.8.102:51820` | `51820` | UDP |
 | **SSH** | `192.168.8.2:22` | `2222` | TCP |
 
 ### **DMZ Alternative:**
@@ -122,8 +122,8 @@ ip route show        # Check routing
 ### **DNS Issues:**
 ```bash
 # Test Pi-hole DNS
-nslookup google.com 192.168.8.2
-nslookup ads.google.com 192.168.8.2  # Should be blocked
+nslookup google.com 192.168.8.100
+nslookup ads.google.com 192.168.8.100  # Should be blocked
 ```
 
 ### **Slow Performance:**
@@ -135,7 +135,7 @@ nslookup ads.google.com 192.168.8.2  # Should be blocked
 ### **Can't Access Services:**
 1. Check **ZimaBoard services**: `pct list`
 2. Verify **firewall rules** on X3000
-3. Test **local access first**: `curl http://192.168.8.2:8080`
+3. Test **local access first**: `curl http://192.168.8.100/admin`
 4. Check **port forwarding** configuration
 
 ## 📊 Monitoring Dashboard

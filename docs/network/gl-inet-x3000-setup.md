@@ -43,14 +43,14 @@
 
 ### **Set ZimaBoard as DNS Server:**
 1. Go to **Network** → **DNS**
-2. Set **Primary DNS**: `192.168.8.2` (ZimaBoard Pi-hole)
+2. Set **Primary DNS**: `192.168.8.100` (ZimaBoard Pi-hole)
 3. Set **Secondary DNS**: `1.1.1.1` (backup)
 4. **Enable DNS Rebinding Protection**: OFF
 5. Click **Apply**
 
 ### **DHCP DNS Settings:**
 1. Go to **Network** → **DHCP Server**
-2. Set **Primary DNS**: `192.168.8.2`
+2. Set **Primary DNS**: `192.168.8.100`
 3. Set **Secondary DNS**: `1.1.1.1`
 4. This makes all devices use Pi-hole automatically
 
@@ -61,8 +61,8 @@ If you need external access to services:
 1. Go to **Network** → **Port Forwards**
 2. Add rules:
    - **Proxmox**: External `8006` → `192.168.8.2:8006`
-   - **Pi-hole**: External `8080` → `192.168.8.2:8080`
-   - **Seafile**: External `8000` → `192.168.8.2:8000`
+   - **Pi-hole**: External `8080` → `192.168.8.100:80`
+   - **Seafile**: External `8000` → `192.168.8.101:8000`
 
 ### **DMZ Configuration (Alternative):**
 For simple external access:

@@ -41,7 +41,7 @@ VMID    Status    Name        Purpose
 105     ✅        nginx       Web services
 ```
 
-**Access your deployed services at:** `http://192.168.8.2:PORT`
+**Access your deployed services at:** (See service URLs below)
 
 ---
 
@@ -424,17 +424,17 @@ pct list
 pvesm status
 
 # Test services
-curl -I http://192.168.8.2:8080/admin    # Pi-hole admin
-curl -I http://192.168.8.2:8000          # Seafile
-curl -I http://192.168.8.2               # Nginx
+curl -I http://192.168.8.100/admin       # Pi-hole admin
+curl -I http://192.168.8.101:8000        # Seafile
+curl -I http://192.168.8.105              # Nginx
 ```
 
 **📋 Post-Deployment Checklist:**
 ```markdown
 - [ ] Change Pi-hole admin password: `pct exec 100 -- pihole -a -p newpassword`
-- [ ] Create Seafile admin user at http://192.168.8.2:8000
-- [ ] Configure router DNS to point to 192.168.8.2 (network-wide ad-blocking)
-- [ ] Set up devices to use Squid proxy (192.168.8.2:3128)
+- [ ] Create Seafile admin user at http://192.168.8.101:8000
+- [ ] Configure router DNS to point to 192.168.8.100 (network-wide ad-blocking)
+- [ ] # Set up devices to use Squid proxy (192.168.8.103:3128)
 - [ ] Generate Wireguard client configs for mobile devices
 - [ ] Test VPN connection from external network
 - [ ] Configure automated backups schedule
@@ -453,27 +453,27 @@ Once installed, access your services at these URLs (replace `YOUR-IP` with your 
 | Service | URL | Purpose |
 |---------|-----|---------|
 | **Proxmox Management** | `https://192.168.8.2:8006` | Main system management |
-| **Nginx Web Server** | `http://192.168.8.2` | Reverse proxy dashboard |
-| **System Status** | SSH access | Real-time container monitoring |
+| **Nginx Web Server** | `http://192.168.8.105` | Reverse proxy dashboard |
+| **Netdata Monitoring** | `http://192.168.8.104:19999` | Real-time system monitoring |
 
 ### 🛡️ Security Services  
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Pi-hole DNS Admin** | `http://192.168.8.2:8080/admin` | DNS filtering & ad-blocking |
-| **Wireguard VPN** | Container 102 configs | Secure mobile access |
+| **Pi-hole DNS Admin** | `http://192.168.8.100/admin` | DNS filtering & ad-blocking |
+| **Wireguard VPN** | Container 192.168.8.102 | Secure mobile access |
 
 ### 📊 Storage & Optimization
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Seafile Personal Cloud** | `http://192.168.8.2:8000` | Private file storage & sync |
-| **Squid Proxy** | `192.168.8.2:3128` | Cellular bandwidth optimization |
+| **Seafile Personal Cloud** | `http://192.168.8.101:8000` | Private file storage & sync |
+| **Squid Proxy** | `192.168.8.103:3128` | Cellular bandwidth optimization |
 
 ### 🔑 Default Credentials
 **⚠️ CHANGE THESE IMMEDIATELY AFTER INSTALLATION**
 
 - **Proxmox VE**: root / (set during installation)
 - **Pi-hole**: admin / admin123 (change via: `pihole -a -p`)
-- **Seafile**: Create admin user on first login at http://192.168.8.2:8000
+- **Seafile**: Create admin user on first login at http://192.168.8.101:8000
 - **Wireguard**: Key-based authentication (secure by default)
 - **SSH Access**: root@192.168.8.2 (Proxmox credentials)
 
@@ -489,7 +489,7 @@ Once installed, access your services at these URLs (replace `YOUR-IP` with your 
 
 1. **Connect** ZimaBoard 2 to GL.iNet X3000 via Ethernet
 2. **Configure GL.iNet X3000** (access via `192.168.8.1`):
-   - Set **Primary DNS**: `192.168.8.2` (ZimaBoard Pi-hole)
+   - Set **Primary DNS**: `192.168.8.100` (ZimaBoard Pi-hole)
    - Set **DHCP Reservation**: `192.168.8.2` for ZimaBoard
    - **Optional**: Enable port forwarding for external access
 3. **Configure ZimaBoard** static IP:
@@ -678,7 +678,7 @@ pct exec 101 -- tail -f /opt/seafile/logs/seafile.log
 pct exec 102 -- bash -c "
   cd /etc/wireguard
   # Update client.conf with your external IP
-  sed -i 's/YOUR_ZIMABOARD_IP/192.168.8.2/g' client.conf
+  sed -i 's/YOUR_ZIMABOARD_IP/192.168.8.102/g' client.conf
   cat client.conf
 "
 
