@@ -667,6 +667,22 @@ If Proxmox installer shows this error for eMMC devices:
 # See: https://pve.proxmox.com/wiki/Install_Proxmox_VE_on_Debian_12_Bookworm
 ```
 
+#### eMMC Optimization Script Error: "No such file or directory"
+If you see errors like `bash: /etc/pve/snippets/emmc-vm-template.conf: No such file or directory`:
+```bash
+# This happens when eMMC optimization runs before Proxmox cluster is ready
+# The script now handles this gracefully, but if you see this error:
+
+# 1. Check if Proxmox cluster is properly initialized
+pvesh get /cluster/status
+
+# 2. Run the eMMC optimization script manually after Proxmox is ready
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/optimize-emmc.sh | bash
+
+# 3. Verify eMMC optimizations were applied
+cat /var/log/emmc-optimization.log
+```
+
 > **📚 Research Credits**: eMMC installation workarounds and longevity analysis based on comprehensive testing by [iBug's Proxmox eMMC Installation Guide](https://ibug.io/blog/2022/03/install-proxmox-ve-emmc/) and [eMMC Lifespan Analysis](https://ibug.io/blog/2023/07/prolonging-emmc-life-span-with-proxmox-ve/). Real-world testing shows 32GB eMMC can handle ~10TB total writes (~3-7 years typical usage).
 
 ### 📞 Get Help
