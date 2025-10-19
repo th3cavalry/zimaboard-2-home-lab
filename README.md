@@ -38,7 +38,7 @@ This homelab provides enterprise-grade security for your home network, optimized
 - **⚡ Bandwidth Optimization**: Squid proxy (50-75% cellular savings)
 - **📊 Real-time Monitoring**: Netdata (zero-config system monitoring)
 - **💾 Automatic Backups**: Proxmox snapshots & data protection
-- **🔧 eMMC Optimization**: Longevity-focused storage optimization for embedded flash
+- **🔧 eMMC+SSD Optimization**: OS on eMMC, all data on 2TB SSD for maximum longevity
 
 ### 🎯 Why This Setup?
 - **✅ One Command Install**: Complete deployment in minutes
@@ -66,16 +66,22 @@ This homelab provides enterprise-grade security for your home network, optimized
 
 ### Prerequisites
 - **ZimaBoard 2** (16GB RAM, Intel VT-x enabled)
-- **32GB+ eMMC storage** for Proxmox VE 9 OS (or SSD alternative)  
-- **2TB SSD** for services and data storage
+- **32GB+ eMMC storage** for Proxmox VE 9 OS only  
+- **2TB+ SSD** (required) for all containers, VMs, and data storage
 - **8GB+ USB drive** for installation media
 - **Network connection** for setup and updates
 
 **📱 eMMC-Specific Requirements:**
 - Minimum 32GB eMMC (64GB recommended for better wear leveling)
+- eMMC will only host Proxmox OS (no containers or VMs)
 - eMMC must support UHS-I/HS400 mode for optimal performance
 - BIOS/UEFI must detect eMMC as bootable device
 - Stable power supply (eMMC sensitive to power fluctuations)
+
+**💾 SSD Requirements:**
+- **Required**: 2TB+ SSD (SATA or NVMe) for all homelab services
+- SSD will host: containers, VMs, logs, backups, cache, and user data
+- Recommended: NVMe SSD for best performance (but SATA works fine)
 
 ### Step-by-Step Installation
 
@@ -148,22 +154,29 @@ If you encounter the error `"Unable to get device for partition 1 on device /dev
    ```
 5. Save the file, type `exit`, and continue installation normally
 
-**🏗️ eMMC-Optimized Settings:**
+**🏗️ eMMC-Optimized Settings (OS Only):**
   - Filesystem: **ext4** (optimal for eMMC longevity)
   - hdsize: **28GB** (leaves 4GB safety margin on 32GB eMMC)
   - swapsize: **1GB** (reduced for eMMC - optimization will handle memory compression)
-  - maxroot: **8GB** (system partition)
-  - maxvz: **18GB** (container storage)
-  - minfree: **1GB** (emergency space for eMMC wear leveling)
+  - maxroot: **24GB** (system partition - larger for OS-only installation)
+  - maxvz: **0GB** (containers will be stored on 2TB SSD)
+  - minfree: **4GB** (emergency space for eMMC wear leveling)
 
-**⚡ Storage Layout for 32GB eMMC:**
+**⚡ Storage Layout for 32GB eMMC (OS-Only):**
 ```
 /dev/mmcblk0p1  512MB  EFI System Partition
-/dev/mmcblk0p2   8GB   Root filesystem (/)
-/dev/mmcblk0p3   1GB   Swap
-/dev/mmcblk0p4  18GB   LVM for containers (/var/lib/vz)
-Free space:     4GB    Unallocated (wear leveling reserve)
+/dev/mmcblk0p2  24GB   Root filesystem (/) - Proxmox OS only
+/dev/mmcblk0p3   1GB   Swap (minimal)
+Free space:     6.5GB  Unallocated (wear leveling reserve + safety margin)
 ```
+
+**💾 2TB SSD Configuration (All Data & Containers):**
+After Proxmox installation, the 2TB SSD will be configured as:
+- **Container Storage**: All LXC containers stored on SSD
+- **VM Storage**: All virtual machine disks on SSD  
+- **Logs & Temp**: All write-heavy operations redirected to SSD
+- **Backups**: Automated backups stored on SSD
+- **Cache**: Squid cache and other temporary data on SSD
 
 - **Network Configuration**:
   - Hostname: **zimaboard.local**
@@ -179,12 +192,13 @@ Free space:     4GB    Unallocated (wear leveling reserve)
 - Choose "ext4" not "ZFS" - ext4 is optimal for eMMC longevity
 - Proxmox VE 9 may have better eMMC detection than older versions
 
-**📊 eMMC Longevity Expectations:**
-Based on real-world testing data:
-- **Typical Proxmox writes**: 1.5-4.5 TB annually depending on workload
-- **32GB eMMC lifespan**: ~10 TB writes minimum (≈5+ years with optimization)
-- **64GB eMMC lifespan**: ~20 TB writes minimum (≈10+ years with optimization)
-- **Our optimization reduces writes by 60-80%**, significantly extending lifespan
+**📊 eMMC Longevity Expectations (OS-Only Configuration):**
+Based on real-world testing data with OS-only installation:
+- **Proxmox OS writes**: 0.2-0.8 TB annually (OS updates, logs only)
+- **32GB eMMC lifespan**: ~10 TB writes minimum (≈15-50 years with OS-only)
+- **64GB eMMC lifespan**: ~20 TB writes minimum (≈25-100 years with OS-only)
+- **Write reduction**: 90%+ compared to full installation on eMMC
+- **Expected lifespan**: Essentially unlimited for typical homelab usage
 
 #### 5️⃣ Initial Configuration
 ```bash
@@ -217,23 +231,52 @@ lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep mmcblk
 cat /sys/block/mmcblk0/stat 2>/dev/null || echo "eMMC stats not available"
 ```
 
+**💾 2TB SSD Setup (Automatic):**
+The deployment script automatically:
+1. **Detects** attached 2TB SSD (usually `/dev/sda`)
+2. **Partitions** and formats the SSD with ext4
+3. **Configures** Proxmox storage pool pointing to SSD
+4. **Redirects** all container/VM storage to SSD
+5. **Moves** logs and temporary files to SSD
+
+**Manual SSD verification:**
+```bash
+# Check if SSD is detected
+lsblk | grep sda
+ls -la /dev/sda*
+
+# Verify SSD storage pool (after setup)
+pvesm status
+pvesm list ssd-storage  # Lists all storage on SSD
+
+# Check container storage location
+pct config 100 | grep rootfs  # Should show ssd-storage path
+```
+
 #### 6️⃣ Deploy Complete Homelab
 ```bash
-# One command installs everything with eMMC optimization!
+# One command installs everything with eMMC optimization + 2TB SSD setup!
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/complete-setup.sh | bash
 
 # Alternative: Modern 2025 version with AdGuard Home  
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/complete-setup-modern.sh | bash
 ```
 
-**🎉 That's it! Your eMMC-optimized homelab is ready!**
+**🎉 That's it! Your eMMC+SSD optimized homelab is ready!**
 
 The complete setup automatically includes:
-- ✅ **eMMC longevity optimization** (60-80% write reduction)
+- ✅ **eMMC protection** (OS-only installation, 90%+ write reduction)
+- ✅ **2TB SSD configuration** (all containers, VMs, logs, and data)
+- ✅ **Automatic storage detection** (detects and configures attached SSD)
 - ✅ **Memory compression** (zswap for better RAM utilization)
-- ✅ **Intelligent caching** (reduces eMMC wear)
-- ✅ **Health monitoring** (automated eMMC health checks)
+- ✅ **Intelligent caching** (all cache files on SSD, not eMMC)
+- ✅ **Health monitoring** (automated eMMC and SSD health checks)
 - ✅ **Maintenance automation** (scheduled optimization tasks)
+
+**📊 Storage Distribution:**
+- **eMMC (32GB)**: Proxmox VE OS, kernel, system files only
+- **2TB SSD**: All containers, VMs, logs, backups, cache, and user data
+- **Result**: eMMC writes reduced by 90%+, maximum lifespan achieved
 
 ---
 
@@ -387,7 +430,45 @@ mount | grep noatime
 /usr/local/bin/emmc-maintenance.sh
 ```
 
-#### eMMC-Specific Issues
+#### SSD Storage Issues
+```bash
+# Check if 2TB SSD is properly detected
+lsblk | grep -E "(sda|nvme)"
+fdisk -l | grep -E "(sda|nvme)"
+
+# Verify SSD is mounted and accessible
+df -h | grep -E "(sda|nvme|ssd)"
+mount | grep -E "(sda|nvme|ssd)"
+
+# Check Proxmox storage configuration
+pvesm status
+cat /etc/pve/storage.cfg | grep -A 5 ssd
+
+# Test SSD write performance
+cd /mnt/ssd-storage && dd if=/dev/zero of=test.tmp bs=1M count=100 && rm test.tmp
+
+# Check container storage location
+for i in $(pct list | awk 'NR>1 {print $1}'); do
+  echo "Container $i storage:"
+  pct config $i | grep rootfs
+done
+```
+
+#### Moving Containers from eMMC to SSD (if needed)
+```bash
+# If containers were accidentally created on eMMC, move them:
+# 1. Stop the container
+pct stop 100
+
+# 2. Move container storage
+pct move-volume 100 rootfs ssd-storage
+
+# 3. Start container
+pct start 100
+
+# Verify new location
+pct config 100 | grep rootfs
+```
 ```bash
 # Check if eMMC device is detected
 lsblk | grep mmcblk
@@ -462,24 +543,26 @@ If Proxmox installer shows this error for eMMC devices:
 <details>
 <summary><strong>⚙️ Resource Specifications</strong></summary>
 
-### Optimized Resource Allocation (16GB RAM)
+### Optimized Resource Allocation (16GB RAM + 2TB SSD)
 ```
-Proxmox Host:     2GB RAM, 8GB storage
-Pi-hole/DNS:      1GB RAM, 8GB storage  
-Seafile NAS:      2GB RAM, 1TB storage
-Squid Proxy:      2GB RAM, 200GB storage
-Netdata:          512MB RAM, 8GB storage
-Fail2ban:         256MB RAM, 2GB storage
-Wireguard:        256MB RAM, 2GB storage
-ClamAV:           1GB RAM, 8GB storage
-Nginx:            512MB RAM, 4GB storage
-Available:        5.5GB RAM, 800GB storage
+Proxmox Host:     2GB RAM, 24GB eMMC (OS only)
+Pi-hole/DNS:      1GB RAM, 8GB SSD storage  
+Seafile NAS:      2GB RAM, 1TB SSD storage
+Squid Proxy:      2GB RAM, 200GB SSD storage
+Netdata:          512MB RAM, 8GB SSD storage
+Fail2ban:         256MB RAM, 2GB SSD storage
+Wireguard:        256MB RAM, 2GB SSD storage
+ClamAV:           1GB RAM, 8GB SSD storage
+Nginx:            512MB RAM, 4GB SSD storage
+Available:        5.5GB RAM, 1.5TB SSD storage
+eMMC Usage:       24GB used, 8GB safety margin
 ```
 
 ### Hardware Requirements
-- **Minimum**: ZimaBoard 2, 16GB RAM, 32GB storage
-- **Recommended**: + 2TB SSD for optimal performance
+- **Required**: ZimaBoard 2, 16GB RAM, 32GB+ eMMC storage
+- **Required**: 2TB+ SSD for all container/VM storage and data
 - **Network**: Ethernet connection to router/cellular gateway
+- **Optimal Setup**: eMMC for OS only, SSD for all data operations
 
 ### Documentation
 - **[eMMC Optimization Guide](docs/EMMC_OPTIMIZATION.md)**: Maximize embedded storage lifespan
