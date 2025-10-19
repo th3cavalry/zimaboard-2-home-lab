@@ -18,6 +18,17 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# Install required packages if not present
+echo "🔧 Checking for required tools..."
+if ! command -v parted &> /dev/null; then
+    echo "Installing parted..."
+    apt update -qq && apt install -y parted
+fi
+if ! command -v wipefs &> /dev/null; then
+    echo "Installing util-linux (wipefs)..."
+    apt install -y util-linux
+fi
+
 # Detect the 2TB SSD dynamically (can be /dev/sda or /dev/sdb)
 echo "🔍 Detecting 2TB SSD device..."
 SSD_DEVICE=""
@@ -73,15 +84,33 @@ echo "🔧 Wiping existing partition table..."
 wipefs -a $SSD_DEVICE
 
 echo "🔧 Creating new GPT partition table..."
-# Create fresh GPT partition table
-parted -s $SSD_DEVICE mklabel gpt
+# Create fresh GPT partition table using parted or fdisk as fallback
+if command -v parted &> /dev/null; then
+    echo "Using parted for partitioning..."
+    parted -s $SSD_DEVICE mklabel gpt
+    
+    # Create partitions:
+    # 1TB for Seafile NAS data (homelab services)
+    # 1TB for backups and expansion  
+    echo "🔧 Creating fresh partitions..."
+    parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
+    parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
+else
+    echo "Using fdisk for partitioning..."
+    # Create GPT partition table with fdisk
+    fdisk $SSD_DEVICE << EOF
+g
+n
+1
 
-# Create partitions:
-# 1TB for Seafile NAS data (homelab services)
-# 1TB for backups and expansion
-echo "🔧 Creating fresh partitions..."
-parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
-parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
++950G
+n
+2
+
+
+w
+EOF
+fi
 
 # Wait for system to recognize new partitions
 echo "🔧 Waiting for partition table updates..."
