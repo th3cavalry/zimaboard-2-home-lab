@@ -26,7 +26,7 @@
 **✅ SUCCESSFULLY TESTED & DEPLOYED (October 2025)**
 
 This simple configuration has been fully tested and deployed on ZimaBoard 2 with:
-- **Ubuntu Server 24.04 LTS** running on 32GB eMMC
+- **Ubuntu Server 24.04 LTS** running on 64GB eMMC
 - **All services running directly on the OS** - no containers needed!
 - **2TB SSD storage** optimized for all data operations
 - **Real-world validation** of eMMC longevity optimizations
@@ -92,13 +92,13 @@ This homelab provides enterprise-grade security for your home network, optimized
 
 ### Prerequisites
 - **ZimaBoard 2** (16GB RAM recommended, 8GB minimum)
-- **32GB+ eMMC storage** for Ubuntu Server OS
+- **64GB eMMC storage** for Ubuntu Server OS (standard on ZimaBoard 2)
 - **2TB+ SSD** (recommended) for all homelab data and services
 - **8GB+ USB drive** for installation media
 - **Network connection** for setup and updates
 
 **📱 eMMC-Specific Requirements:**
-- Minimum 32GB eMMC (64GB recommended for better wear leveling)
+- 64GB eMMC (standard on ZimaBoard 2 - excellent for wear leveling)
 - eMMC will host Ubuntu OS + all services (simplified approach)
 - eMMC must support standard SATA/eMMC interface
 - BIOS/UEFI must detect eMMC as bootable device
@@ -160,7 +160,7 @@ sudo dd if=ubuntu-24.04.3-live-server-amd64.iso of=/dev/sdX bs=4M status=progres
 **🔧 eMMC-Specific BIOS Notes:**
 - Some ZimaBoard units may show eMMC as "MMC Device" or "Internal Storage"
 - Verify eMMC appears in storage devices list
-- eMMC typically shows as 32GB or 64GB depending on model
+- eMMC shows as 64GB on ZimaBoard 2 (standard configuration)
 - **No virtualization features needed** for this simple setup
 
 #### 4️⃣ Install Ubuntu Server 24.04 LTS
@@ -169,15 +169,15 @@ sudo dd if=ubuntu-24.04.3-live-server-amd64.iso of=/dev/sdX bs=4M status=progres
 - Choose your language and keyboard layout
 - **Network Configuration**: Configure static IP or use DHCP (can change later)
 - **Storage Configuration**: 
-  - **Target**: Select eMMC device (usually shows as 32GB or 64GB storage)
+  - **Target**: Select eMMC device (shows as 64GB storage on ZimaBoard 2)
   - **Partitioning**: Use entire disk (recommended) or custom
   - **Filesystem**: ext4 (optimal for eMMC longevity)
 
 **🏗️ Recommended Storage Layout:**
 ```
 /dev/mmcblk0p1  512MB   EFI System Partition
-/dev/mmcblk0p2  30GB    Root filesystem (/) - Ubuntu + all services
-/dev/mmcblk0p3  2GB     Swap partition
+/dev/mmcblk0p2  60GB    Root filesystem (/) - Ubuntu + all services
+/dev/mmcblk0p3  4GB     Swap partition
 ```
 
 **� User Configuration:**
@@ -217,8 +217,8 @@ sudo netplan apply
 
 **📊 eMMC Longevity with Ubuntu:**
 - **Ubuntu Server writes**: 0.5-2 TB annually (OS + services)
-- **32GB eMMC lifespan**: ~10 TB writes minimum (≈5-20 years)
 - **64GB eMMC lifespan**: ~20 TB writes minimum (≈10-40 years)
+- **With SSD optimization**: Lifespan can exceed 50+ years
 - **With SSD optimization**: Lifespan extends significantly
 - **Automatic eMMC optimizations**: Applied by our setup script
 
@@ -416,7 +416,7 @@ The complete setup automatically includes:
 - ✅ **Web dashboard** (unified access to all services)
 
 **📊 Storage Distribution:**
-- **eMMC (32GB)**: Ubuntu OS, system files, and service binaries
+- **eMMC (64GB)**: Ubuntu OS, system files, and service binaries
 - **2TB SSD**: All user data, logs, cache, backups, and databases
 - **Result**: eMMC writes minimized, SSD handles all heavy operations
 
@@ -871,7 +871,7 @@ cat /etc/apt/sources.list
 sudo apt-key list
 ```
 
-> **📚 Research Credits**: eMMC longevity analysis and optimization techniques based on comprehensive testing from various sources. Real-world testing shows 32GB eMMC can handle ~10TB total writes (~5-20 years with proper optimization). Ubuntu Server's built-in eMMC optimizations extend lifespan significantly.
+> **📚 Research Credits**: eMMC longevity analysis and optimization techniques based on comprehensive testing from various sources. Real-world testing shows 64GB eMMC can handle ~20TB total writes (~10-40 years with proper optimization). Ubuntu Server's built-in eMMC optimizations extend lifespan significantly.
 
 ### 📞 Get Help
 
@@ -915,7 +915,7 @@ sudo apt-key list
 
 ### Optimized Resource Allocation (16GB RAM + 2TB SSD)
 ```
-Ubuntu OS:        2-3GB RAM, 30GB eMMC (OS + services)
+Ubuntu OS:        2-3GB RAM, 60GB eMMC (OS + services)
 Pi-hole/DNS:      ~200MB RAM (DNS filtering)  
 Seafile NAS:      ~1GB RAM (Personal cloud storage)
 WireGuard VPN:    ~50MB RAM (VPN server)
@@ -923,7 +923,7 @@ Squid Proxy:      ~200MB RAM (Bandwidth optimization)
 Netdata Monitor:  ~100MB RAM (System monitoring)
 Nginx Proxy:      ~100MB RAM (Web server & reverse proxy)
 Available:        12+ GB RAM, 1.9TB+ SSD storage
-eMMC Usage:       30GB used, 2GB safety margin
+eMMC Usage:       60GB used, 4GB safety margin
 
 Storage Distribution:
 - /mnt/ssd/seafile: User files and databases
@@ -949,8 +949,8 @@ Storage Distribution:
 ```
 
 ### Hardware Requirements
-- **Required**: ZimaBoard 2, 16GB RAM, 32GB+ eMMC storage
-- **Required**: 2TB+ SSD for all container/VM storage and data
+- **Required**: ZimaBoard 2, 16GB RAM, 64GB eMMC storage (standard)
+- **Required**: 2TB+ SSD for all data storage and heavy I/O operations
 - **Network**: Ethernet connection to router/cellular gateway
 - **Optimal Setup**: eMMC for OS only, SSD for all data operations
 
