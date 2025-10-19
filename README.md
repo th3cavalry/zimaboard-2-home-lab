@@ -610,8 +610,8 @@ pvesh set /cluster/firewall/options --enable 1
 
 ### SSD Optimization
 ```bash
-# Set optimal scheduler for SSDs
-echo 'mq-deadline' > /sys/block/sdb/queue/scheduler
+# Set optimal scheduler for SSDs (adjust device name as needed)
+echo 'mq-deadline' > /sys/block/sda/queue/scheduler  # Usually sda for 2TB SSD
 
 # Optimize mount options
 echo 'noatime,nodiratime' >> /etc/fstab
