@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# ZimaBoard 2 SSD Storage Setup Script - AUTOMATIC FORMAT MODE
-# AUTOMATICALLY erases and reformats 2TB SSD from scratch
-# Comprehensive setup: formats, partitions, configures Proxmox storage pools, and optimizes 2TB SSD
+# ZimaBoard 2 SSD Storage Setup Script - Interactive Mode
+# Configures 2TB SSD for ZimaBoard homelab with user-selectable formatting options
+# Comprehensive setup: optional formatting, partitioning, configures Proxmox storage pools, and optimizes 2TB SSD
 
 set -e
 
@@ -21,10 +21,10 @@ cleanup() {
 }
 trap cleanup EXIT ERR
 
-echo "📀 ZimaBoard 2 SSD Storage Setup - AUTOMATIC FORMAT"
-echo "=================================================="
-echo "⚠️  AUTOMATIC MODE: Will completely erase and reformat 2TB SSD!"
-echo "Comprehensive setup with fresh formatting, partitioning, and Proxmox integration..."
+echo "📀 ZimaBoard 2 SSD Storage Setup"
+echo "================================"
+echo "🔧 Interactive setup for 2TB SSD storage configuration"
+echo "Choose your setup mode based on your current SSD state"
 echo ""
 
 # Check if running as root
@@ -89,31 +89,120 @@ echo "Current partition table:"
 lsblk $SSD_DEVICE
 echo ""
 
-# Automatic format: Start from scratch - ERASE ALL DATA
-echo "🚨 AUTOMATIC FORMAT MODE: This will completely erase $SSD_DEVICE!"
-echo "🔧 Unmounting any existing partitions..."
-umount ${SSD_DEVICE}* 2>/dev/null || echo "No partitions were mounted"
+# Check for existing partitions
+EXISTING_PARTITIONS=$(lsblk -n -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | wc -l)
+HAS_DATA=false
 
-echo "🔧 Wiping existing partition table..."
-# Wipe any existing partition signatures
-wipefs -a $SSD_DEVICE
-
-echo "🔧 Creating new GPT partition table..."
-# Create fresh GPT partition table using parted or fdisk as fallback
-if command -v parted &> /dev/null; then
-    echo "Using parted for partitioning..."
-    parted -s $SSD_DEVICE mklabel gpt
+if [[ $EXISTING_PARTITIONS -gt 0 ]]; then
+    echo "📋 Existing partitions detected on $SSD_DEVICE:"
+    lsblk $SSD_DEVICE
+    echo ""
     
-    # Create partitions:
-    # 1TB for Seafile NAS data (homelab services)
-    # 1TB for backups and expansion  
-    echo "🔧 Creating fresh partitions..."
-    parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
-    parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
+    # Check if partitions are mounted or contain data
+    for part in ${SSD_DEVICE}*; do
+        if [[ -b "$part" && "$part" != "$SSD_DEVICE" ]]; then
+            if mountpoint -q "$part" 2>/dev/null; then
+                echo "⚠️  Partition $part is currently mounted"
+                HAS_DATA=true
+            elif [[ $(file -s "$part" | grep -c "filesystem\|data") -gt 0 ]]; then
+                echo "⚠️  Partition $part appears to contain data"
+                HAS_DATA=true
+            fi
+        fi
+    done
+fi
+
+# Interactive setup mode selection
+echo "🎯 Setup Mode Selection"
+echo "======================="
+echo "1) Fresh Format - Completely erase and reformat $SSD_DEVICE (recommended for new drives)"
+echo "2) Use Existing Partitions - Configure Proxmox storage with existing partitions (preserves data)"
+echo "3) Advanced - Manual partition selection and optional formatting"
+echo "4) Exit - Cancel setup"
+echo ""
+
+# Auto-format mode check (for backwards compatibility)
+if [[ "${AUTO_FORMAT:-0}" == "1" ]]; then
+    echo "🚨 AUTO_FORMAT=1 detected - Using automatic fresh format mode"
+    SETUP_MODE="1"
 else
-    echo "Using fdisk for partitioning..."
-    # Create GPT partition table with fdisk
-    fdisk $SSD_DEVICE << EOF
+    while true; do
+        read -p "Select setup mode [1-4]: " SETUP_MODE
+        case $SETUP_MODE in
+            [1-4])
+                break
+                ;;
+            *)
+                echo "❌ Invalid option. Please select 1, 2, 3, or 4."
+                ;;
+        esac
+    done
+fi
+
+echo ""
+
+case $SETUP_MODE in
+    1)
+        echo "🚨 FRESH FORMAT MODE: This will completely erase $SSD_DEVICE!"
+        if [[ $HAS_DATA == true ]]; then
+            echo "⚠️  WARNING: Existing data detected on this drive!"
+            echo "This will permanently delete all data on $SSD_DEVICE"
+            echo ""
+            read -p "Type 'ERASE' to confirm complete data deletion: " confirm
+            if [[ "$confirm" != "ERASE" ]]; then
+                echo "❌ Operation cancelled by user"
+                exit 1
+            fi
+        fi
+        FORMAT_DRIVE=true
+        ;;
+    2)
+        echo "🔄 EXISTING PARTITIONS MODE: Will use current partitions"
+        if [[ $EXISTING_PARTITIONS -lt 2 ]]; then
+            echo "❌ Error: Need at least 2 partitions for homelab setup"
+            echo "Current partitions: $EXISTING_PARTITIONS"
+            echo "Please use Fresh Format mode or create partitions manually"
+            exit 1
+        fi
+        FORMAT_DRIVE=false
+        ;;
+    3)
+        echo "🔧 ADVANCED MODE: Manual configuration"
+        FORMAT_DRIVE=false  # Will be set based on user choices below
+        ;;
+    4)
+        echo "👋 Setup cancelled by user"
+        exit 0
+        ;;
+esac
+
+echo ""
+
+# Execute setup based on selected mode
+if [[ $FORMAT_DRIVE == true ]]; then
+    echo "🔧 Unmounting any existing partitions..."
+    umount ${SSD_DEVICE}* 2>/dev/null || echo "No partitions were mounted"
+
+    echo "🔧 Wiping existing partition table..."
+    # Wipe any existing partition signatures
+    wipefs -a $SSD_DEVICE
+
+    echo "🔧 Creating new GPT partition table..."
+    # Create fresh GPT partition table using parted or fdisk as fallback
+    if command -v parted &> /dev/null; then
+        echo "Using parted for partitioning..."
+        parted -s $SSD_DEVICE mklabel gpt
+        
+        # Create partitions:
+        # 1TB for Seafile NAS data (homelab services)
+        # 1TB for backups and expansion  
+        echo "🔧 Creating fresh partitions..."
+        parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
+        parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
+    else
+        echo "Using fdisk for partitioning..."
+        # Create GPT partition table with fdisk
+        fdisk $SSD_DEVICE << EOF
 g
 n
 1
@@ -125,31 +214,165 @@ n
 
 w
 EOF
+    fi
+
+    # Wait for system to recognize new partitions
+    echo "🔧 Waiting for partition table updates..."
+    sleep 3
+    partprobe $SSD_DEVICE 2>/dev/null || echo "⚠️ partprobe failed, continuing..."
+    udevadm settle --timeout=10 2>/dev/null || echo "⚠️ udevadm settle timeout, continuing..."
+
+    # Give additional time for device nodes to appear
+    sleep 2
+
+    # Set partition variables for fresh setup
+    SSD_PART1="${SSD_DEVICE}1"
+    SSD_PART2="${SSD_DEVICE}2"
+
+    # Format partitions with ext4
+    echo "🔧 Formatting partitions with ext4..."
+    mkfs.ext4 -F $SSD_PART1 -L "seafile-data" -m 1
+    mkfs.ext4 -F $SSD_PART2 -L "backup-storage" -m 1
+
+    echo "✅ Fresh partition setup complete!"
+    echo "📋 New partition layout:"
+    lsblk $SSD_DEVICE
+
+elif [[ $SETUP_MODE == "2" ]]; then
+    # Use existing partitions mode
+    echo "🔄 Using existing partitions..."
+    
+    # Automatically detect the first two partitions
+    PARTITIONS=($(lsblk -n -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$" | head -2))
+    
+    if [[ ${#PARTITIONS[@]} -lt 2 ]]; then
+        echo "❌ Error: Found ${#PARTITIONS[@]} partitions, need at least 2"
+        exit 1
+    fi
+    
+    SSD_PART1="/dev/${PARTITIONS[0]}"
+    SSD_PART2="/dev/${PARTITIONS[1]}"
+    
+    echo "Selected partitions:"
+    echo "• Seafile data: $SSD_PART1"
+    echo "• Backup storage: $SSD_PART2"
+    
+    # Check if partitions need formatting
+    for part in $SSD_PART1 $SSD_PART2; do
+        FS_TYPE=$(lsblk -n -o FSTYPE "$part" 2>/dev/null || echo "")
+        if [[ -z "$FS_TYPE" || "$FS_TYPE" != "ext4" ]]; then
+            echo "⚠️  Partition $part is not ext4 formatted"
+            read -p "Format $part as ext4? [y/N]: " format_confirm
+            if [[ "$format_confirm" =~ ^[Yy] ]]; then
+                echo "🔧 Formatting $part as ext4..."
+                umount "$part" 2>/dev/null || true
+                if [[ "$part" == "$SSD_PART1" ]]; then
+                    mkfs.ext4 -F "$part" -L "seafile-data" -m 1
+                else
+                    mkfs.ext4 -F "$part" -L "backup-storage" -m 1
+                fi
+            fi
+        else
+            echo "✅ Partition $part already has ext4 filesystem"
+        fi
+    done
+
+elif [[ $SETUP_MODE == "3" ]]; then
+    # Advanced mode - let user select partitions
+    echo "🔧 Advanced partition selection..."
+    
+    echo "Available partitions on $SSD_DEVICE:"
+    lsblk $SSD_DEVICE
+    echo ""
+    
+    # Get available partitions
+    AVAILABLE_PARTS=($(lsblk -n -o NAME "$SSD_DEVICE" | grep -v "^$(basename $SSD_DEVICE)$"))
+    
+    if [[ ${#AVAILABLE_PARTS[@]} -eq 0 ]]; then
+        echo "❌ No partitions found. Creating new partitions..."
+        echo "🔧 Wiping existing partition table..."
+        wipefs -a $SSD_DEVICE
+        
+        echo "🔧 Creating new GPT partition table..."
+        if command -v parted &> /dev/null; then
+            parted -s $SSD_DEVICE mklabel gpt
+            parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
+            parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
+        fi
+        
+        sleep 3
+        partprobe $SSD_DEVICE 2>/dev/null || true
+        udevadm settle --timeout=10 2>/dev/null || true
+        sleep 2
+        
+        SSD_PART1="${SSD_DEVICE}1"
+        SSD_PART2="${SSD_DEVICE}2"
+        
+        mkfs.ext4 -F $SSD_PART1 -L "seafile-data" -m 1
+        mkfs.ext4 -F $SSD_PART2 -L "backup-storage" -m 1
+    else
+        echo "Select partition for Seafile data storage:"
+        for i in "${!AVAILABLE_PARTS[@]}"; do
+            PART_SIZE=$(lsblk -n -o SIZE "/dev/${AVAILABLE_PARTS[$i]}" 2>/dev/null || echo "Unknown")
+            echo "$((i+1))) /dev/${AVAILABLE_PARTS[$i]} (${PART_SIZE})"
+        done
+        
+        while true; do
+            read -p "Select seafile partition [1-${#AVAILABLE_PARTS[@]}]: " part1_idx
+            if [[ "$part1_idx" =~ ^[0-9]+$ ]] && [[ $part1_idx -ge 1 && $part1_idx -le ${#AVAILABLE_PARTS[@]} ]]; then
+                SSD_PART1="/dev/${AVAILABLE_PARTS[$((part1_idx-1))]}"
+                break
+            fi
+            echo "Invalid selection. Please choose 1-${#AVAILABLE_PARTS[@]}"
+        done
+        
+        echo "Select partition for backup storage:"
+        for i in "${!AVAILABLE_PARTS[@]}"; do
+            if [[ "/dev/${AVAILABLE_PARTS[$i]}" != "$SSD_PART1" ]]; then
+                PART_SIZE=$(lsblk -n -o SIZE "/dev/${AVAILABLE_PARTS[$i]}" 2>/dev/null || echo "Unknown")
+                echo "$((i+1))) /dev/${AVAILABLE_PARTS[$i]} (${PART_SIZE})"
+            fi
+        done
+        
+        while true; do
+            read -p "Select backup partition [1-${#AVAILABLE_PARTS[@]}]: " part2_idx
+            if [[ "$part2_idx" =~ ^[0-9]+$ ]] && [[ $part2_idx -ge 1 && $part2_idx -le ${#AVAILABLE_PARTS[@]} ]]; then
+                SSD_PART2="/dev/${AVAILABLE_PARTS[$((part2_idx-1))]}"
+                if [[ "$SSD_PART2" != "$SSD_PART1" ]]; then
+                    break
+                fi
+                echo "❌ Cannot use the same partition for both purposes"
+            fi
+            echo "Invalid selection. Please choose a different partition."
+        done
+        
+        echo ""
+        echo "Selected configuration:"
+        echo "• Seafile data: $SSD_PART1"
+        echo "• Backup storage: $SSD_PART2"
+        
+        # Ask about formatting each partition
+        for part in $SSD_PART1 $SSD_PART2; do
+            FS_TYPE=$(lsblk -n -o FSTYPE "$part" 2>/dev/null || echo "")
+            PART_PURPOSE=$([ "$part" == "$SSD_PART1" ] && echo "seafile-data" || echo "backup-storage")
+            
+            if [[ -n "$FS_TYPE" ]]; then
+                echo "Partition $part currently has filesystem: $FS_TYPE"
+                read -p "Format $part as ext4 for $PART_PURPOSE? [y/N]: " format_confirm
+            else
+                echo "Partition $part has no filesystem"
+                read -p "Format $part as ext4 for $PART_PURPOSE? [Y/n]: " format_confirm
+                [[ -z "$format_confirm" ]] && format_confirm="y"
+            fi
+            
+            if [[ "$format_confirm" =~ ^[Yy] ]]; then
+                echo "🔧 Formatting $part as ext4..."
+                umount "$part" 2>/dev/null || true
+                mkfs.ext4 -F "$part" -L "$PART_PURPOSE" -m 1
+            fi
+        done
+    fi
 fi
-
-# Wait for system to recognize new partitions
-echo "🔧 Waiting for partition table updates..."
-sleep 3
-partprobe $SSD_DEVICE 2>/dev/null || echo "⚠️ partprobe failed, continuing..."
-udevadm settle --timeout=10 2>/dev/null || echo "⚠️ udevadm settle timeout, continuing..."
-
-# Give additional time for device nodes to appear
-sleep 2
-
-# Set partition variables for fresh setup
-SSD_PART1="${SSD_DEVICE}1"
-SSD_PART2="${SSD_DEVICE}2"
-
-# Format partitions with ext4
-echo "🔧 Formatting partitions with ext4..."
-mkfs.ext4 -F $SSD_PART1 -L "seafile-data" -m 1
-mkfs.ext4 -F $SSD_PART2 -L "backup-storage" -m 1
-
-echo "✅ Fresh partition setup complete!"
-echo "� New partition layout:"
-lsblk $SSD_DEVICE
-
-# Partitions are handled above based on existing vs new setup
 
 # Create mount points
 echo "🔧 Creating mount points..."

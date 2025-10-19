@@ -311,14 +311,25 @@ echo "✅ Manual SSD setup complete!"
 df -h /mnt/seafile-data /mnt/backup-storage
 ```
 
-**🚀 Automatic SSD Setup (Fresh Format):**
-The main setup script now automatically formats the 2TB SSD from scratch:
+**🚀 Interactive SSD Setup (User Selectable Formatting):**
+The main setup script now provides interactive options for your 2TB SSD:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
 ```
 
-**⚠️ WARNING: This script will automatically ERASE ALL DATA on your 2TB SSD!**
+**📋 Setup Options:**
+1. **Fresh Format** - Completely erase and reformat (for new/empty drives) 
+2. **Use Existing Partitions** - Configure Proxmox storage with current partitions (preserves data)
+3. **Advanced Mode** - Manual partition selection with optional formatting
+4. **Exit** - Cancel setup
+
+**⚠️ Automatic Format Mode (Backwards Compatibility):**
+For automated deployments, use the AUTO_FORMAT environment variable:
+```bash
+AUTO_FORMAT=1 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
+```
+**⚠️ WARNING: AUTO_FORMAT=1 will automatically ERASE ALL DATA on your 2TB SSD!**
 
 **📋 What the Automatic Script Does:**
 - ✅ **Auto-detects** 2TB SSD (whether /dev/sda, /dev/sdb, or /dev/sdc)
@@ -544,7 +555,16 @@ done
 #### Setup Script Shows "SSD device /dev/sdb not found"
 **Problem**: The setup script expects `/dev/sdb` but your 2TB SSD appears as `/dev/sda`.
 
-**Manual SSD Configuration (Recommended Solution):**
+**Interactive Setup (Recommended Solution):**
+```bash
+# Run the interactive setup script
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
+
+# Choose option 2 "Use Existing Partitions" or option 3 "Advanced Mode"
+# This will preserve your data and configure existing partitions
+```
+
+**Manual SSD Configuration (Alternative):**
 ```bash
 # Step 1: Identify your SSD device
 lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT
