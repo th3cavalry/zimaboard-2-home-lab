@@ -241,9 +241,16 @@ The deployment script automatically:
 
 **Manual SSD verification:**
 ```bash
-# Check if SSD is detected
+# Check if SSD is detected (usually appears as /dev/sda)
 lsblk | grep sda
 ls -la /dev/sda*
+
+# Verify current partition usage
+df -h | grep sda
+mount | grep sda
+
+# Check for available partitions
+file -s /dev/sda*
 
 # Verify SSD storage pool (after setup)
 pvesm status
@@ -251,6 +258,63 @@ pvesm list ssd-storage  # Lists all storage on SSD
 
 # Check container storage location
 pct config 100 | grep rootfs  # Should show ssd-storage path
+
+# Verify eMMC vs SSD usage
+echo "--- eMMC Usage (OS only) ---"
+df -h | grep mmcblk
+echo "--- SSD Usage (Data storage) ---"
+df -h | grep sda
+```
+
+**🚨 SSD Detection Troubleshooting:**
+If the automated setup script fails with "SSD device /dev/sdb not found", your SSD might be detected as `/dev/sda` instead. Here's how to fix it:
+
+```bash
+# 1. Check your actual SSD device
+lsblk
+# Look for your ~2TB SSD device (might be /dev/sda, not /dev/sdb)
+
+# 2. Manual SSD Setup (if automated fails)
+SSD_DEVICE="/dev/sda"  # Change this to match your lsblk output
+
+# Verify it's the correct device
+echo "Setting up SSD: $SSD_DEVICE"
+lsblk $SSD_DEVICE
+
+# ⚠️ WARNING: This will ERASE ALL DATA on the SSD!
+# Create partitions for homelab storage
+parted -s $SSD_DEVICE mklabel gpt
+parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
+parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
+sleep 2
+
+# Format the partitions
+mkfs.ext4 -F ${SSD_DEVICE}1 -L "seafile-data"
+mkfs.ext4 -F ${SSD_DEVICE}2 -L "backup-storage"
+
+# Create mount points and mount
+mkdir -p /mnt/seafile-data /mnt/backup-storage
+mount ${SSD_DEVICE}1 /mnt/seafile-data
+mount ${SSD_DEVICE}2 /mnt/backup-storage
+
+# Make mounts permanent
+SEAFILE_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}1)
+BACKUP_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}2)
+echo "UUID=$SEAFILE_UUID /mnt/seafile-data ext4 defaults,noatime 0 2" >> /etc/fstab
+echo "UUID=$BACKUP_UUID /mnt/backup-storage ext4 defaults,noatime 0 2" >> /etc/fstab
+
+# Set proper permissions
+chmod 755 /mnt/seafile-data /mnt/backup-storage
+
+# Verify setup
+echo "✅ Manual SSD setup complete!"
+df -h /mnt/seafile-data /mnt/backup-storage
+```
+
+**🔄 Updated Automated Setup:**
+The setup script has been updated to automatically detect SSD devices dynamically. Try it again:
+```bash
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/setup-ssd-storage.sh | bash
 ```
 
 #### 6️⃣ Deploy Complete Homelab
@@ -453,6 +517,54 @@ for i in $(pct list | awk 'NR>1 {print $1}'); do
   pct config $i | grep rootfs
 done
 ```
+
+#### Setup Script Shows "SSD device /dev/sdb not found"
+**Problem**: The setup script expects `/dev/sdb` but your 2TB SSD appears as `/dev/sda`.
+
+**Manual SSD Configuration (Recommended Solution):**
+```bash
+# Step 1: Identify your SSD device
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT
+
+# Step 2: Check partition information
+fdisk -l /dev/sda
+file -s /dev/sda*
+
+# Step 3: Manual SSD setup (choose an available partition)
+# WARNING: This will format the partition - ensure no important data!
+
+# Create mount point
+mkdir -p /mnt/ssd-storage
+
+# Format partition (use sda3 or sda4 - check which is empty first!)
+# CAUTION: Replace sda3 with the correct empty partition
+mkfs.ext4 /dev/sda3
+
+# Mount the SSD
+mount /dev/sda3 /mnt/ssd-storage
+
+# Add to fstab for persistent mounting
+echo "/dev/sda3 /mnt/ssd-storage ext4 defaults,noatime 0 2" >> /etc/fstab
+
+# Configure Proxmox storage pool
+pvesm add dir ssd-storage --path /mnt/ssd-storage --content images,rootdir,backup,vztmpl
+
+# Verify setup
+pvesm status
+df -h /mnt/ssd-storage
+```
+
+**Quick Fix Script (Alternative):**
+```bash
+# Download and run the fixed setup script
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/proxmox/ssd-setup-fix.sh | bash
+```
+
+**Device Naming Reference:**
+- **eMMC**: `/dev/mmcblk0` (Proxmox OS)
+- **First SSD**: `/dev/sda` (your 2TB drive) ← **Most common**
+- **Second drive**: `/dev/sdb` (if you add another drive)
+- **NVMe drives**: `/dev/nvme0n1`, `/dev/nvme1n1`, etc.
 
 #### Moving Containers from eMMC to SSD (if needed)
 ```bash

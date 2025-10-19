@@ -16,12 +16,43 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# Detect the 2TB SSD (usually /dev/sdb on ZimaBoard 2)
-SSD_DEVICE="/dev/sdb"
-if [[ ! -b "$SSD_DEVICE" ]]; then
-    echo "❌ SSD device $SSD_DEVICE not found"
+# Detect the 2TB SSD dynamically (can be /dev/sda or /dev/sdb)
+echo "🔍 Detecting 2TB SSD device..."
+SSD_DEVICE=""
+
+# Check common SSD device paths
+for device in /dev/sda /dev/sdb /dev/sdc; do
+    if [[ -b "$device" ]]; then
+        # Get device size in GB
+        size_bytes=$(lsblk -b -d -n -o SIZE "$device" 2>/dev/null || echo 0)
+        size_gb=$((size_bytes / 1024 / 1024 / 1024))
+        
+        echo "Found device: $device (${size_gb}GB)"
+        
+        # Look for devices between 1800-2200GB (allowing for manufacturer differences)
+        if [[ $size_gb -gt 1800 && $size_gb -lt 2200 ]]; then
+            SSD_DEVICE="$device"
+            echo "✅ Selected 2TB SSD: $SSD_DEVICE (${size_gb}GB)"
+            break
+        fi
+    fi
+done
+
+if [[ -z "$SSD_DEVICE" ]]; then
+    echo "❌ No 2TB SSD device found automatically"
     echo "Available devices:"
     lsblk
+    echo ""
+    echo "Please manually specify the SSD device path:"
+    echo "Example: export SSD_DEVICE=/dev/sda && $0"
+    exit 1
+fi
+
+# Safety check - make sure we're not targeting eMMC
+if [[ "$SSD_DEVICE" == *"mmcblk"* ]]; then
+    echo "❌ Error: Selected device appears to be eMMC storage!"
+    echo "This script is designed for SSD storage only."
+    echo "eMMC device detected: $SSD_DEVICE"
     exit 1
 fi
 
