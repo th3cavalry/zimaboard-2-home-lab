@@ -175,23 +175,31 @@ log "✅ Configured aggressive log rotation"
 # 8. Configure Proxmox-specific optimizations
 log "🏠 Applying Proxmox-specific optimizations..."
 
-# Optimize Proxmox VE configuration
-if [[ -f /etc/pve/datacenter.cfg ]]; then
+# Check if Proxmox is properly initialized before making configuration changes
+if [[ -d "/etc/pve" && -w "/etc/pve" && -f "/etc/pve/datacenter.cfg" ]]; then
+    # Optimize Proxmox VE configuration
     # Reduce backup verification frequency
     grep -q "max_workers" /etc/pve/datacenter.cfg || echo "max_workers: 2" >> /etc/pve/datacenter.cfg
-fi
-
-# Configure container and VM defaults for eMMC
-mkdir -p /etc/pve/qemu-server
-mkdir -p /etc/pve/lxc
-
-# Create VM template with SSD optimizations
-cat > /etc/pve/snippets/emmc-vm-template.conf << EOF
+    
+    # Configure container and VM defaults for eMMC
+    mkdir -p /etc/pve/qemu-server 2>/dev/null || true
+    mkdir -p /etc/pve/lxc 2>/dev/null || true  
+    mkdir -p /etc/pve/snippets 2>/dev/null || true
+    
+    # Create VM template with eMMC optimizations
+    if [[ -d "/etc/pve/snippets" ]]; then
+        cat > /etc/pve/snippets/emmc-vm-template.conf << EOF
 # VM template optimized for eMMC storage
 scsi0: local:100/vm-template-emmc.qcow2,cache=writeback,discard=on,ssd=1
 EOF
-
-log "✅ Applied Proxmox-specific optimizations"
+        log "✅ Applied Proxmox-specific optimizations"
+    else
+        log "⚠️ Unable to create snippets directory, skipping VM template"
+    fi
+else
+    log "⚠️ Proxmox cluster not ready or not writable, skipping Proxmox-specific optimizations"
+    log "   This is normal during initial installation - optimizations will be applied later"
+fi
 
 # 9. Setup monitoring for eMMC health
 log "🔍 Setting up eMMC health monitoring..."
