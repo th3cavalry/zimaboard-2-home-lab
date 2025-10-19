@@ -683,6 +683,26 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 cat /var/log/emmc-optimization.log
 ```
 
+#### Repository Error: "401 Unauthorized" or "E: Failed to fetch"
+If you see errors like `401 Unauthorized [IP: 66.70.154.82 443]` during package updates:
+```bash
+# This happens when Proxmox tries to use enterprise repositories without subscription
+# Fix by switching to community repositories:
+
+# 1. Remove enterprise repositories
+rm -f /etc/apt/sources.list.d/ceph.list
+rm -f /etc/apt/sources.list.d/pve-enterprise.list
+
+# 2. Add community repository
+echo 'deb http://download.proxmox.com/debian/pve trixie pve-no-subscription' > /etc/apt/sources.list.d/pve-community.list
+
+# 3. Update package lists
+apt update
+
+# 4. Continue with installation
+apt install -y htop iotop curl wget git nano
+```
+
 > **📚 Research Credits**: eMMC installation workarounds and longevity analysis based on comprehensive testing by [iBug's Proxmox eMMC Installation Guide](https://ibug.io/blog/2022/03/install-proxmox-ve-emmc/) and [eMMC Lifespan Analysis](https://ibug.io/blog/2023/07/prolonging-emmc-life-span-with-proxmox-ve/). Real-world testing shows 32GB eMMC can handle ~10TB total writes (~3-7 years typical usage).
 
 ### 📞 Get Help
