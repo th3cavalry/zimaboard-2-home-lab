@@ -123,15 +123,34 @@ configure_ssd_storage() {
     # Install partitioning tools
     apt install -y parted
     
+        # Check if /mnt/ssd-data is already mounted
+    if mountpoint -q /mnt/ssd-data 2>/dev/null; then
+        MOUNTED_DEVICE=$(findmnt -n -o SOURCE /mnt/ssd-data)
+        print_success "SSD is already mounted: $MOUNTED_DEVICE at /mnt/ssd-data"
+        
+        # Ensure it's in fstab
+        SSD_UUID=$(blkid -s UUID -o value "$MOUNTED_DEVICE")
+        if ! grep -q "$SSD_UUID" /etc/fstab 2>/dev/null; then
+            print_info "Adding to /etc/fstab for persistent mounting"
+            echo "UUID=$SSD_UUID /mnt/ssd-data ext4 defaults,noatime 0 2" >> /etc/fstab
+        fi
+        
+        export DATA_DIR="/mnt/ssd-data"
+        export SSD_AVAILABLE=true
+        
+        setup_ssd_directories
+        return 0
+    fi
+    
     # Check for existing partitions
-    EXISTING_PARTS=$(lsblk -p -n -o NAME "$SSD_DEVICE" | grep -v "^$SSD_DEVICE$" | head -5)
+    EXISTING_PARTS=$(lsblk -p -n -o NAME "$SSD_DEVICE" | grep -v "^$SSD_DEVICE$")
     
     if [[ -n "$EXISTING_PARTS" ]]; then
         print_info "Found existing partitions:"
         lsblk "$SSD_DEVICE"
         echo ""
         
-        # Try to use existing partition
+        # Try to use first available partition
         FIRST_PART=$(echo "$EXISTING_PARTS" | head -1 | tr -d ' ')
         if [[ -n "$FIRST_PART" ]]; then
             print_info "Attempting to use existing partition: $FIRST_PART"
@@ -139,7 +158,7 @@ configure_ssd_storage() {
             # Create mount point and test
             mkdir -p /mnt/ssd-data
             if mount "$FIRST_PART" /mnt/ssd-data 2>/dev/null; then
-                print_success "Using existing partition successfully"
+                print_success "Successfully mounted existing partition: $FIRST_PART"
                 
                 # Add to fstab if not already present
                 SSD_UUID=$(blkid -s UUID -o value "$FIRST_PART")
@@ -153,8 +172,26 @@ configure_ssd_storage() {
                 setup_ssd_directories
                 return 0
             else
-                print_warning "Could not mount existing partition, creating new layout"
+                print_warning "Could not mount existing partition: $FIRST_PART"
+                print_info "Checking if partition is in use..."
+                
+                # Check what's using the partition
+                if lsof "$FIRST_PART" 2>/dev/null; then
+                    print_warning "Partition $FIRST_PART is currently in use"
+                fi
             fi
+        fi
+        
+        # Ask user before destroying existing partitions
+        echo ""
+        print_warning "⚠️ WARNING: Found existing partitions on $SSD_DEVICE"
+        print_warning "⚠️ Creating new partitions will DESTROY ALL DATA!"
+        echo ""
+        read -p "Do you want to DESTROY existing data and create new partitions? (type 'DESTROY' to confirm): " confirm
+        if [[ "$confirm" != "DESTROY" ]]; then
+            print_info "Skipping SSD setup to preserve existing data"
+            setup_emmc_only
+            return 0
         fi
     fi
     
