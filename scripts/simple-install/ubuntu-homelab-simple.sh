@@ -131,11 +131,19 @@ print_success "Pi-hole installed and configured"
 
 # 7. Install and Configure Nginx
 print_status "🌐 Configuring Nginx reverse proxy..."
+
+# Stop and disable Apache2 (if installed) before configuring Nginx
 systemctl stop apache2 2>/dev/null || true
 systemctl disable apache2 2>/dev/null || true
 
-# Get PHP version for configuration
-PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+# Mask Apache2 to prevent it from being started by dependencies
+systemctl mask apache2 2>/dev/null || true
+
+# Install Nginx first
+apt install -y nginx
+
+# Use default PHP version for Ubuntu 24.04 LTS (PHP will be installed later)
+PHP_VERSION="8.3"
 
 cat > /etc/nginx/sites-available/homelab << NGINX_EOF
 server {
@@ -386,6 +394,10 @@ apt install -y \
     redis-server \
     unzip
 
+# Update Nginx configuration with correct PHP version now that PHP is installed
+ACTUAL_PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+sed -i "s/php8\.3-fpm/php${ACTUAL_PHP_VERSION}-fpm/g" /etc/nginx/sites-available/homelab
+
 # Configure MariaDB
 systemctl start mariadb
 systemctl enable mariadb
@@ -571,6 +583,12 @@ print_success "Automatic security updates enabled"
 
 # 14. Final system optimization
 print_status "⚡ Applying final optimizations..."
+
+# Ensure Apache2 is properly stopped and masked (PHP packages may try to start it)
+systemctl stop apache2 2>/dev/null || true
+systemctl disable apache2 2>/dev/null || true
+systemctl mask apache2 2>/dev/null || true
+
 # Apply sysctl changes
 sysctl -p
 
