@@ -25,18 +25,21 @@
 
 **✅ FULLY OPTIMIZED & RESEARCH-VALIDATED (October 2025)**
 
+**🎉 NEXTCLOUD UPGRADE COMPLETE!** This configuration now includes Nextcloud instead of Seafile:
+
 This configuration represents the optimal 2025 homelab setup based on comprehensive research:
 - **Ubuntu Server 24.04 LTS** running on 64GB eMMC (5-year LTS support)
 - **All services running directly on the OS** - no containers, maximum performance!
 - **2TB SSD storage** optimized for all data operations and eMMC longevity
 - **2025 service alternatives** researched from awesome-selfhosted database (4,000+ services analyzed)
 - **Real-world validation** of eMMC optimizations and cellular bandwidth savings
+- **🚀 UPGRADED: Nextcloud replaces Seafile** with office suite, calendar, contacts, 400+ apps!
 
 **Current Service Status:**
 ```
 Service     Status    Port      Purpose                    2025 Rating
 Pi-hole     ✅        :8080     DNS filtering & ad-blocking    Excellent ⭐⭐⭐⭐⭐
-Seafile     ✅        :8000     Personal cloud storage         Good ⭐⭐⭐⭐ (consider Nextcloud)  
+Nextcloud   ✅        :8000     Personal cloud + office suite  Excellent ⭐⭐⭐⭐⭐ (UPGRADED!)  
 Wireguard   ✅        :51820    VPN server (UDP)               Gold Standard ⭐⭐⭐⭐⭐
 Squid       ✅        :3128     Bandwidth optimization         Excellent ⭐⭐⭐⭐⭐
 Netdata     ✅        :19999    System monitoring              Perfect ⭐⭐⭐⭐⭐
@@ -49,7 +52,7 @@ Nginx       ✅        :80       Web services & reverse proxy   Excellent ⭐⭐
 - ✅ **OS Choice Validated**: Ubuntu Server 24.04 LTS is optimal for embedded systems
 - ✅ **Service Selection**: All current choices rank in top 3 for their categories  
 - ✅ **Architecture Approach**: Direct installation beats containerization for small setups
-- ✅ **Future Upgrade Path**: Clear recommendations for Nextcloud, Immich, Vaultwarden
+- ✅ **Future Upgrade Path**: Nextcloud upgrade complete! Next: Immich, Vaultwarden
 
 ---
 
@@ -65,7 +68,7 @@ This homelab provides enterprise-grade security for your home network, optimized
 - **🌐 Web Filtering**: Advanced streaming ad-blocking
 
 ### 📊 Storage & Performance  
-- **☁️ Personal Cloud**: Seafile NAS (1TB secure file storage)
+- **☁️ Personal Cloud**: Nextcloud (file sync, calendar, contacts, office suite, 400+ apps)
 - **⚡ Bandwidth Optimization**: Squid proxy (50-75% cellular savings)
 - **📊 Real-time Monitoring**: Netdata (zero-config system monitoring)
 - **💾 Automatic Backups**: System backups & data protection
@@ -113,7 +116,7 @@ This homelab provides enterprise-grade security for your home network, optimized
 
 **💾 SSD Requirements (Optional but Recommended):**
 - **2TB+ SSD** for user data, logs, cache, and backups
-- SSD will host: Pi-hole database, Seafile files, Squid cache, system logs
+- SSD will host: Pi-hole database, Nextcloud files, Squid cache, system logs
 - NVMe SSD preferred for best performance, but SATA works fine
 - **Note**: Services work without SSD, but SSD greatly improves performance and eMMC lifespan
 
@@ -325,26 +328,26 @@ parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
 sleep 2
 
 # Format the partitions
-mkfs.ext4 -F ${SSD_DEVICE}1 -L "seafile-data"
+mkfs.ext4 -F ${SSD_DEVICE}1 -L "nextcloud-data"
 mkfs.ext4 -F ${SSD_DEVICE}2 -L "backup-storage"
 
 # Create mount points and mount
-mkdir -p /mnt/seafile-data /mnt/backup-storage
-mount ${SSD_DEVICE}1 /mnt/seafile-data
+mkdir -p /mnt/nextcloud-data /mnt/backup-storage
+mount ${SSD_DEVICE}1 /mnt/nextcloud-data
 mount ${SSD_DEVICE}2 /mnt/backup-storage
 
 # Make mounts permanent
-SEAFILE_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}1)
+NEXTCLOUD_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}1)
 BACKUP_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}2)
-echo "UUID=$SEAFILE_UUID /mnt/seafile-data ext4 defaults,noatime 0 2" >> /etc/fstab
+echo "UUID=$NEXTCLOUD_UUID /mnt/nextcloud-data ext4 defaults,noatime 0 2" >> /etc/fstab
 echo "UUID=$BACKUP_UUID /mnt/backup-storage ext4 defaults,noatime 0 2" >> /etc/fstab
 
 # Set proper permissions
-chmod 755 /mnt/seafile-data /mnt/backup-storage
+chmod 755 /mnt/nextcloud-data /mnt/backup-storage
 
 # Verify setup
 echo "✅ Manual SSD setup complete!"
-df -h /mnt/seafile-data /mnt/backup-storage
+df -h /mnt/nextcloud-data /mnt/backup-storage
 ```
 
 **🚀 Interactive SSD Setup (User Selectable Formatting):**
@@ -414,7 +417,7 @@ The complete setup automatically includes:
 - ✅ **eMMC optimization** (reduced writes by 90%+, extended lifespan)
 - ✅ **2TB SSD configuration** (all data storage and heavy I/O operations)
 - ✅ **Pi-hole DNS filtering** (network-wide ad blocking)
-- ✅ **Seafile file sharing** (secure file sync and sharing)
+- ✅ **Nextcloud file sharing** (feature-rich personal cloud with office suite)
 - ✅ **WireGuard VPN** (secure remote access)
 - ✅ **Squid proxy** (web caching and SSL inspection)
 - ✅ **Netdata monitoring** (real-time system metrics)
@@ -432,7 +435,8 @@ After running the complete setup, verify your deployment:
 ```bash
 # Check all services are running
 sudo systemctl status pihole-FTL
-sudo systemctl status seafile
+sudo systemctl status mariadb
+sudo systemctl status redis-server
 sudo systemctl status wg-quick@wg0
 sudo systemctl status squid
 sudo systemctl status netdata
@@ -445,14 +449,14 @@ df -h | grep mmcblk  # Check eMMC usage
 # Test services
 curl -I http://192.168.8.2              # Main dashboard
 curl -I http://192.168.8.2:8080/admin   # Pi-hole admin
-curl -I http://192.168.8.2:8000         # Seafile
+curl -I http://192.168.8.2:8000         # Nextcloud
 curl -I http://192.168.8.2:19999        # Netdata
 ```
 
 **📋 Post-Deployment Checklist:**
 ```markdown
 - [ ] Change Pi-hole admin password: `pihole -a -p newpassword`
-- [ ] Create Seafile admin user at http://192.168.8.2:8000
+- [ ] Create Nextcloud admin user at http://192.168.8.2:8000
 - [ ] Configure router DNS to point to 192.168.8.2 (network-wide ad-blocking)
 - [ ] Set up devices to use Squid proxy (192.168.8.2:3128)
 - [ ] Generate WireGuard client configs for mobile devices (QR codes saved in /etc/wireguard/)
@@ -485,7 +489,7 @@ Once installed, access your services at these URLs:
 ### 📊 Storage & File Sharing
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Seafile Personal Cloud** | `http://192.168.8.2:8000` | Private file storage & sync |
+| **Nextcloud Personal Cloud** | `http://192.168.8.2:8000` | Private file storage, calendar, contacts, office |
 | **Squid Proxy** | `192.168.8.2:3128` | Cellular bandwidth optimization |
 
 ### 🔑 Default Credentials
@@ -493,7 +497,7 @@ Once installed, access your services at these URLs:
 
 - **Ubuntu SSH**: username@192.168.8.2 (user you created during Ubuntu installation)
 - **Pi-hole**: admin / random password (generated during setup, shown in terminal)
-- **Seafile**: admin@example.com / admin123 (change after first login)
+- **Nextcloud**: admin / admin123 (change after first login)
 - **WireGuard**: Key-based authentication (QR codes generated during setup)
 - **Netdata**: No authentication by default (access from local network only)
 
@@ -552,7 +556,7 @@ Once installed, access your services at these URLs:
 **Check system health:**
 ```bash
 # Check all service status
-sudo systemctl status pihole-FTL seafile wg-quick@wg0 squid netdata nginx
+sudo systemctl status pihole-FTL mariadb redis-server wg-quick@wg0 squid netdata nginx
 
 # Check resource usage
 htop
@@ -561,7 +565,7 @@ free -h
 
 # Check logs
 sudo journalctl -u pihole-FTL --since "1 hour ago"
-sudo journalctl -u seafile --since "1 hour ago"
+sudo journalctl -u mariadb --since "1 hour ago"
 ```
 
 **Verify complete deployment:**
@@ -569,12 +573,12 @@ sudo journalctl -u seafile --since "1 hour ago"
 # Test all service endpoints
 curl -I http://192.168.8.2              # Main dashboard
 curl -I http://192.168.8.2:8080/admin   # Pi-hole
-curl -I http://192.168.8.2:8000         # Seafile
+curl -I http://192.168.8.2:8000         # Nextcloud
 curl -I http://192.168.8.2:19999        # Netdata
 
 # Check service status
 sudo systemctl is-active --quiet pihole-FTL && echo "Pi-hole: ✅" || echo "Pi-hole: ❌"
-sudo systemctl is-active --quiet seafile && echo "Seafile: ✅" || echo "Seafile: ❌"
+sudo systemctl is-active --quiet mariadb && echo "Nextcloud DB: ✅" || echo "Nextcloud DB: ❌"
 sudo systemctl is-active --quiet wg-quick@wg0 && echo "WireGuard: ✅" || echo "WireGuard: ❌"
 ```
 
@@ -587,10 +591,10 @@ sudo /opt/homelab/scripts/backup-services.sh
 **Individual service management:**
 ```bash
 sudo systemctl status pihole-FTL    # Pi-hole status
-sudo systemctl restart seafile      # Restart Seafile
+sudo systemctl restart mariadb      # Restart Nextcloud DB
 pihole -g                           # Update Pi-hole blocklists
 sudo wg show                        # Check VPN status
-sudo systemctl status seafile       # Check Seafile status
+sudo systemctl status mariadb       # Check Nextcloud database
 sudo systemctl status squid         # Check proxy status
 sudo systemctl restart netdata      # Restart monitoring
 ```
@@ -692,7 +696,7 @@ cd /mnt/ssd && sudo dd if=/dev/zero of=test.tmp bs=1M count=100 && sudo rm test.
 # Check service data locations on SSD
 ls -la /mnt/ssd/
 ls -la /var/lib/pihole  # Should be symlinked to SSD
-ls -la /opt/seafile     # Should be on SSD
+ls -la /var/www/nextcloud/data     # Should be on SSD
 ```
 
 #### Service-Specific Troubleshooting
@@ -709,21 +713,32 @@ sudo systemctl restart pihole-FTL
 pihole -a -p newpassword
 ```
 
-**Seafile Connection Problems:**
+**Nextcloud Connection Problems:**
 ```bash
-# Check Seafile server status
-sudo systemctl status seafile
+# Check Nextcloud database status
+sudo systemctl status mariadb
 
-# Restart Seafile services
-sudo systemctl restart seafile
+# Check PHP-FPM status
+sudo systemctl status php*-fpm
 
-# Or manually restart Seafile components
-cd /opt/seafile/seafile-server-latest
-sudo ./seafile.sh restart
-sudo ./seahub.sh restart
+# Test Nextcloud directly
+cd /var/www/nextcloud
+sudo -u www-data php occ status
 
-# Check Seafile logs
-sudo tail -f /opt/seafile/logs/seafile.log
+# Check Nextcloud configuration
+sudo -u www-data php occ config:list system
+
+# Update Nextcloud trusted domains if needed
+sudo -u www-data php occ config:system:set trusted_domains 1 --value="192.168.8.2"
+
+# Restart all Nextcloud services
+sudo systemctl restart mariadb
+sudo systemctl restart php*-fpm
+sudo systemctl restart redis-server
+sudo systemctl restart nginx
+
+# Check Nextcloud logs
+sudo tail -f /var/www/nextcloud/data/nextcloud.log
 ```
 
 **WireGuard Configuration:**
@@ -778,8 +793,8 @@ mount /dev/sda3 /mnt/ssd-storage
 echo "/dev/sda3 /mnt/ssd-storage ext4 defaults,noatime 0 2" >> /etc/fstab
 
 # Configure service directories
-mkdir -p /mnt/ssd-storage/{seafile,logs,cache,backups}
-chown -R www-data:www-data /mnt/ssd-storage/seafile
+mkdir -p /mnt/ssd-storage/{nextcloud,logs,cache,backups}
+chown -R www-data:www-data /mnt/ssd-storage/nextcloud
 
 # Verify setup
 df -h /mnt/ssd-storage
@@ -802,18 +817,18 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 ```bash
 # If service data was created on eMMC, move it:
 # 1. Stop the service
-sudo systemctl stop seafile
+sudo systemctl stop mariadb
 
 # 2. Move data directory
-sudo mv /opt/seafile /mnt/ssd/seafile
-sudo ln -s /mnt/ssd/seafile /opt/seafile
+sudo mv /var/lib/mysql /mnt/ssd/mysql
+sudo ln -s /mnt/ssd/mysql /var/lib/mysql
 
 # 3. Start service
-sudo systemctl start seafile
+sudo systemctl start mariadb
 
 # Verify new location
-ls -la /opt/seafile  # Should show symlink to SSD
-df -h /mnt/ssd/seafile
+ls -la /var/lib/mysql  # Should show symlink to SSD
+df -h /mnt/ssd/mysql
 ```
 ```bash
 # Check if eMMC device is detected
@@ -913,12 +928,12 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 ### File Sync & Personal Cloud Alternatives  
 | Program | GitHub Stars | Status | Best For |
 |---------|-------------|--------|----------|
-| **Seafile** ✅ | 12.0k | Current choice | Performance on limited hardware |
-| **Nextcloud** 🔥 | 27.0k | **2025 upgrade** | Feature-rich ecosystem (400+ apps) |
+| **Nextcloud** ✅ | 27.0k | **Current choice** | Feature-rich ecosystem (400+ apps, office suite) |
+| **Seafile** | 12.0k | Previous | Performance on limited hardware |
 | **ownCloud** | 8.4k | Stable | Simpler administration |
 | **Pydio Cells** | 1.7k | Enterprise | High-performance alternative |
 
-**Recommendation**: **Upgrade to Nextcloud** - significantly more features, better mobile apps, document editing, calendar/contacts integration.
+**Recommendation**: **Nextcloud is now installed** - excellent choice with document editing, calendar/contacts integration, and 400+ apps!
 
 ### System Monitoring Alternatives
 | Program | GitHub Stars | Status | Best For |
@@ -966,7 +981,7 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 ### 2025 Upgrade Path Recommendations
 
 **Phase 1 (Immediate - High Impact):**
-1. **Replace Seafile → Nextcloud** (major functionality upgrade)
+1. **✅ Nextcloud installed** (major functionality upgrade complete!)
 2. **Add Immich** for photo management 
 3. **Add Vaultwarden** for password management
 
@@ -985,15 +1000,15 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 | Current Service | Keep/Upgrade | 2025 Alternative | Effort | Benefit |
 |----------------|--------------|------------------|--------|---------|
 | Pi-hole | ✅ Keep | AdGuard Home | Medium | Better mobile UI |
-| Seafile | 🔄 Upgrade | **Nextcloud** | High | Major features |
+| Nextcloud | ✅ **UPGRADED** | - | - | **Major features added** |
 | Netdata | ✅ Keep | + Uptime Kuma | Low | Better monitoring |
 | WireGuard | ✅ Keep | - | - | Gold standard |
 | Nginx | ✅ Keep | Caddy | Medium | Auto HTTPS |
 | Squid | ✅ Keep | - | - | Still optimal |
 
 **🎯 Priority Recommendations for Your Setup:**
-1. **Keep current excellent choices**: Pi-hole, Netdata, WireGuard, Nginx
-2. **Major upgrade**: Seafile → Nextcloud (worth the effort)
+1. **✅ Excellent current choices**: Pi-hole, Netdata, WireGuard, Nginx, **Nextcloud**
+2. **✅ Major upgrade complete**: Nextcloud now provides office suite, calendar, contacts
 3. **Easy additions**: Immich (photos), Vaultwarden (passwords)
 4. **Future consideration**: CasaOS for easier management
 
@@ -1006,18 +1021,21 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 ```
 Ubuntu OS:        2-3GB RAM, 60GB eMMC (OS + services)
 Pi-hole/DNS:      ~200MB RAM (DNS filtering)  
-Seafile NAS:      ~1GB RAM (Personal cloud storage)
+Nextcloud Cloud:  ~1.5GB RAM (Personal cloud + office suite)
+MariaDB:          ~300MB RAM (Nextcloud database)
+Redis Cache:      ~100MB RAM (Nextcloud caching)
 WireGuard VPN:    ~50MB RAM (VPN server)
 Squid Proxy:      ~200MB RAM (Bandwidth optimization)
 Netdata Monitor:  ~100MB RAM (System monitoring)
 Nginx Proxy:      ~100MB RAM (Web server & reverse proxy)
-Available:        12+ GB RAM, 1.9TB+ SSD storage
+Available:        11+ GB RAM, 1.9TB+ SSD storage
 eMMC Usage:       60GB used, 4GB safety margin
 
 Storage Distribution:
-- /mnt/ssd/seafile: User files and databases
+- /mnt/ssd/nextcloud: User files, calendar, contacts, documents
+- /mnt/ssd/mysql: Nextcloud database and metadata
 - /mnt/ssd/logs: All system and service logs  
-- /mnt/ssd/cache: Squid proxy cache
+- /mnt/ssd/cache: Squid proxy cache + Redis cache
 - /mnt/ssd/backups: Automated backup storage
 - eMMC writes reduced by 90%+ (data redirected to SSD)
 ```

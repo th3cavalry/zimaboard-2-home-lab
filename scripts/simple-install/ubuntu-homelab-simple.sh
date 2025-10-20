@@ -69,7 +69,7 @@ ufw allow 443/tcp   # HTTPS
 ufw allow 53/tcp    # DNS
 ufw allow 53/udp    # DNS
 ufw allow 8080/tcp  # Pi-hole admin
-ufw allow 8000/tcp  # Seafile
+ufw allow 8000/tcp  # Nextcloud
 ufw allow 3128/tcp  # Squid proxy
 ufw allow 19999/tcp # Netdata
 ufw allow 51820/udp # Wireguard
@@ -98,7 +98,7 @@ print_success "eMMC optimizations applied"
 # 5. 2TB SSD Setup
 print_status "💾 Setting up 2TB SSD for data storage..."
 # Create data directories on SSD
-mkdir -p /mnt/ssd-data/{seafile,pihole,squid-cache,backups,logs}
+mkdir -p /mnt/ssd-data/{nextcloud,pihole,squid-cache,backups,logs}
 
 # Move log directory to SSD to reduce eMMC writes
 if [ ! -L /var/log ] && [ -d /mnt/ssd-data ]; then
@@ -127,7 +127,10 @@ print_status "🌐 Configuring Nginx reverse proxy..."
 systemctl stop apache2 2>/dev/null || true
 systemctl disable apache2 2>/dev/null || true
 
-cat > /etc/nginx/sites-available/homelab << 'NGINX_EOF'
+# Get PHP version for configuration
+PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
+
+cat > /etc/nginx/sites-available/homelab << NGINX_EOF
 server {
     listen 80 default_server;
     server_name _;
@@ -153,15 +156,102 @@ server {
     }
 }
 
-# Seafile
+# Nextcloud
 server {
     listen 8000;
     server_name _;
-    
+    root /var/www/nextcloud;
+    index index.php index.html;
+
+    # Security headers
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Permitted-Cross-Domain-Policies "none" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Remove X-Powered-By which could leak info
+    fastcgi_hide_header X-Powered-By;
+
+    # Path to the root of Nextcloud
+    root /var/www/nextcloud;
+
+    # Specify how to handle directories
+    location = / {
+        if ( $http_user_agent ~ ^DavClnt ) {
+            return 302 /remote.php/webdav/$is_args$args;
+        }
+    }
+
+    location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+    }
+
+    # Make a regex exception for `/.well-known` location
+    location ^~ /.well-known {
+        location = /.well-known/carddav { return 301 /remote.php/dav/; }
+        location = /.well-known/caldav  { return 301 /remote.php/dav/; }
+        location = /.well-known/webfinger  { return 301 /index.php/.well-known/webfinger; }
+        location = /.well-known/nodeinfo  { return 301 /index.php/.well-known/nodeinfo; }
+        location /.well-known/acme-challenge { try_files $uri $uri/ =404; }
+        location /.well-known/pki-validation { try_files $uri $uri/ =404; }
+        return 301 /index.php$request_uri;
+    }
+
+    # Rules borrowed from `.htaccess` to hide certain paths.
+    location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)(?:$|/)  { return 404; }
+    location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console)                { return 404; }
+
+    # Ensure this block, which passes PHP files to the PHP processor, is above the blocks
+    # which handle static assets (as a `location` block's priority increases with its length).
+    location ~ \.php(?:$|/) {
+        # Required for legacy support
+        rewrite ^/(?!index|remote|public|cron|core\/ajax\/update|status|ocs\/v[12]|updater\/.+|oc[ms]-provider\/.+|.+\/richdocumentscode\/proxy) /index.php$request_uri;
+
+        fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+        set $path_info $fastcgi_path_info;
+
+        try_files $fastcgi_script_name =404;
+
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $path_info;
+        fastcgi_param HTTPS on;
+
+        fastcgi_param modHeadersAvailable true;
+        fastcgi_param front_controller_active true;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+
+        fastcgi_intercept_errors on;
+        fastcgi_request_buffering off;
+
+        fastcgi_max_temp_file_size 0;
+        fastcgi_buffering off;
+    }
+
+    # Serve static files
+    location ~ \.(?:css|js|svg|gif|png|jpg|ico|wasm|tflite|map|ogg|flac)$ {
+        try_files $uri /index.php$request_uri;
+        add_header Cache-Control "public, max-age=15778463, immutable";
+        access_log off;
+    }
+
+    location ~ \.woff2?$ {
+        try_files $uri /index.php$request_uri;
+        expires 7d;
+        access_log off;
+    }
+
+    # Rule borrowed from `.htaccess`
+    location /remote {
+        return 301 /remote.php$request_uri;
+    }
+
     location / {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        try_files $uri $uri/ /index.php$request_uri;
     }
 }
 NGINX_EOF
@@ -273,56 +363,106 @@ systemctl enable wg-quick@wg0
 systemctl start wg-quick@wg0
 print_success "Wireguard VPN installed and configured"
 
-# 11. Install Seafile (lightweight)
-print_status "☁️ Installing Seafile personal cloud..."
+# 11. Install Nextcloud (feature-rich personal cloud)
+print_status "☁️ Installing Nextcloud personal cloud..."
+
+# Install additional PHP modules required for Nextcloud
+apt install -y \
+    php-mysql php-pgsql php-sqlite3 \
+    php-redis php-memcached \
+    php-gd php-imagick \
+    php-json php-curl \
+    php-zip php-xml php-mbstring \
+    php-bz2 php-intl php-gmp \
+    php-bcmath php-smbclient \
+    mariadb-server mariadb-client \
+    redis-server \
+    unzip
+
+# Configure MariaDB
+systemctl start mariadb
+systemctl enable mariadb
+
+# Secure MariaDB and create Nextcloud database
+mysql -u root << 'MYSQL_EOF'
+UPDATE mysql.user SET Password = PASSWORD('admin123') WHERE User = 'root';
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+CREATE DATABASE nextcloud CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE USER 'nextcloud'@'localhost' IDENTIFIED BY 'nextcloud123';
+GRANT ALL PRIVILEGES ON nextcloud.* TO 'nextcloud'@'localhost';
+FLUSH PRIVILEGES;
+MYSQL_EOF
+
+# Download latest Nextcloud
 cd /tmp
-SEAFILE_VERSION="11.0.12"
-wget https://s3.eu-central-1.amazonaws.com/download.seadrive.org/seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz
-tar -xzf seafile-server_${SEAFILE_VERSION}_x86-64.tar.gz -C /opt/
-cd /opt/seafile-server-${SEAFILE_VERSION}/
+NEXTCLOUD_VERSION="31.0.9"
+wget https://download.nextcloud.com/server/releases/nextcloud-${NEXTCLOUD_VERSION}.tar.bz2
+wget https://download.nextcloud.com/server/releases/nextcloud-${NEXTCLOUD_VERSION}.tar.bz2.asc
 
-# Create seafile user
-useradd -r -s /bin/false -d /mnt/ssd-data/seafile seafile
-mkdir -p /mnt/ssd-data/seafile
-chown -R seafile:seafile /mnt/ssd-data/seafile
+# Verify checksum (optional but recommended)
+# gpg --verify nextcloud-${NEXTCLOUD_VERSION}.tar.bz2.asc nextcloud-${NEXTCLOUD_VERSION}.tar.bz2
 
-# Auto-setup Seafile
-echo "Seafile Server
-seafile.local
-8001
+# Extract and install
+tar -xjf nextcloud-${NEXTCLOUD_VERSION}.tar.bz2
+cp -r nextcloud /var/www/
+chown -R www-data:www-data /var/www/nextcloud
 
-/mnt/ssd-data/seafile
+# Create Nextcloud data directory on SSD
+mkdir -p /mnt/ssd-data/nextcloud
+chown -R www-data:www-data /mnt/ssd-data/nextcloud
 
-admin@seafile.local
-admin123" > /tmp/seafile_setup_answers
+# Configure PHP for Nextcloud
+# Update PHP memory limit and other settings
+sed -i 's/memory_limit = .*/memory_limit = 1G/' /etc/php/*/fpm/php.ini
+sed -i 's/upload_max_filesize = .*/upload_max_filesize = 16G/' /etc/php/*/fpm/php.ini
+sed -i 's/post_max_size = .*/post_max_size = 16G/' /etc/php/*/fpm/php.ini
+sed -i 's/max_execution_time = .*/max_execution_time = 3600/' /etc/php/*/fpm/php.ini
+sed -i 's/max_input_time = .*/max_input_time = 3600/' /etc/php/*/fpm/php.ini
 
-./setup-seafile.sh < /tmp/seafile_setup_answers
+# Enable required PHP modules
+phpenmod gd imagick intl mbstring mysql zip xml curl bz2 gmp bcmath redis
 
-# Create systemd service
-cat > /etc/systemd/system/seafile.service << 'SEAFILE_SERVICE_EOF'
-[Unit]
-Description=Seafile
-After=network.target
+# Install Nextcloud via command line (automated setup)
+cd /var/www/nextcloud
+sudo -u www-data php occ maintenance:install \
+    --database="mysql" \
+    --database-name="nextcloud" \
+    --database-user="nextcloud" \
+    --database-pass="nextcloud123" \
+    --admin-user="admin" \
+    --admin-pass="admin123" \
+    --data-dir="/mnt/ssd-data/nextcloud"
 
-[Service]
-Type=forking
-User=seafile
-Group=seafile
-ExecStart=/opt/seafile-server-latest/seafile.sh start
-ExecStop=/opt/seafile-server-latest/seafile.sh stop
-ExecReload=/opt/seafile-server-latest/seafile.sh restart
-Restart=always
-RestartSec=10
+# Configure trusted domains
+sudo -u www-data php occ config:system:set trusted_domains 0 --value="localhost"
+sudo -u www-data php occ config:system:set trusted_domains 1 --value="192.168.8.2"
+sudo -u www-data php occ config:system:set trusted_domains 2 --value="zimaboard"
 
-[Install]
-WantedBy=multi-user.target
-SEAFILE_SERVICE_EOF
+# Configure Redis cache
+sudo -u www-data php occ config:system:set memcache.local --value="\\OC\\Memcache\\APCu"
+sudo -u www-data php occ config:system:set memcache.distributed --value="\\OC\\Memcache\\Redis"
+sudo -u www-data php occ config:system:set redis host --value="localhost"
+sudo -u www-data php occ config:system:set redis port --value=6379
 
-ln -sf /opt/seafile-server-${SEAFILE_VERSION} /opt/seafile-server-latest
-systemctl daemon-reload
-systemctl enable seafile
-systemctl start seafile
-print_success "Seafile personal cloud installed"
+# Configure background jobs to use cron
+sudo -u www-data php occ background:cron
+
+# Set up cron job for Nextcloud
+(crontab -u www-data -l 2>/dev/null; echo "*/5 * * * * php -f /var/www/nextcloud/cron.php") | crontab -u www-data -
+
+# Enable pretty URLs
+sudo -u www-data php occ config:system:set htaccess.RewriteBase --value="/"
+sudo -u www-data php occ maintenance:update:htaccess
+
+# Restart services
+systemctl restart php*-fpm
+systemctl restart redis-server
+systemctl restart mariadb
+
+print_success "Nextcloud personal cloud installed and optimized"
 
 # 12. Create web dashboard
 print_status "🎨 Creating homelab dashboard..."
@@ -358,10 +498,10 @@ cat > /var/www/html/index.html << 'HTML_EOF'
             </div>
             
             <div class="service">
-                <h3>☁️ Seafile Cloud</h3>
-                <p>Personal file storage and synchronization</p>
+                <h3>☁️ Nextcloud Cloud</h3>
+                <p>Feature-rich personal cloud with file sync, calendar, contacts, office suite</p>
                 <div class="status">Status: Active</div>
-                <a href=":8000">Access Files</a>
+                <a href=":8000">Access Nextcloud</a>
             </div>
             
             <div class="service">
@@ -437,7 +577,7 @@ print_success "🎉 ZimaBoard 2 Simple Homelab Setup Complete!"
 echo ""
 echo "📋 Services installed and configured:"
 echo "   🕳️  Pi-hole DNS:      http://192.168.8.2/admin (admin/admin123)"
-echo "   ☁️  Seafile Cloud:    http://192.168.8.2:8000 (admin@seafile.local/admin123)" 
+echo "   ☁️  Nextcloud Cloud:  http://192.168.8.2:8000 (admin/admin123)" 
 echo "   📊 Netdata Monitor:   http://192.168.8.2/netdata"
 echo "   🌐 Web Dashboard:     http://192.168.8.2"
 echo "   🔄 Squid Proxy:      192.168.8.2:3128"
@@ -448,7 +588,7 @@ echo "1. Change default passwords immediately"
 echo "2. Configure your router DNS to point to 192.168.8.2"
 echo "3. Set up devices to use Squid proxy for bandwidth savings"
 echo "4. Download Wireguard client config for mobile access"
-echo "5. Create Seafile libraries and start syncing files"
+echo "5. Start uploading files and explore Nextcloud apps"
 echo ""
 echo "📱 eMMC Optimized: Logs moved to SSD, minimal writes to eMMC"
 echo "💾 2TB SSD: All data stored on fast SSD storage"
