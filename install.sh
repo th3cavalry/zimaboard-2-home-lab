@@ -101,47 +101,115 @@ detect_architecture() {
 # Main Installation
 ################################################################################
 
+download_module() {
+    local module_name=$1
+    local module_path="scripts/modules/${module_name}"
+    
+    if [[ -f "$module_path" ]]; then
+        # Local installation
+        source "$module_path"
+    else
+        # Remote installation - download from GitHub
+        print_info "Downloading module: $module_name"
+        curl -fsSL "${REPO_URL}/${module_path}" -o "/tmp/${module_name}"
+        source "/tmp/${module_name}"
+        rm -f "/tmp/${module_name}"
+    fi
+}
+
 main() {
     print_header
     check_root
     check_ubuntu
     detect_architecture
     
-    print_info "Starting installation..."
-    print_info "This will install: AdGuard Home, Nextcloud, WireGuard, Squid, Netdata, Nginx"
+    print_info "Starting ZimaBoard 2 Homelab installation..."
+    print_info "Services to install: AdGuard Home, Nextcloud, WireGuard, Squid, Netdata, Nginx"
     echo ""
-    read -p "Continue with installation? (y/N): " confirm
     
+    # Show system information
+    print_info "System Information:"
+    echo "  - OS: $(lsb_release -d | cut -f2)"
+    echo "  - Architecture: $ARCH_TYPE"
+    echo "  - Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+    echo "  - Storage: $(df -h / | tail -1 | awk '{print $4}') available"
+    echo ""
+    
+    read -p "Continue with installation? (y/N): " confirm
     if [[ "$confirm" != "y" ]]; then
         print_info "Installation cancelled"
         exit 0
     fi
     
-    # TODO: Download and execute the actual installation modules
-    # For now, this is a placeholder that references the old script
+    # Set up error handling
+    set -e
+    trap 'print_error "Installation failed at line $LINENO. Check the logs above."' ERR
     
-    print_info "Fetching installation modules..."
+    # Export common variables for modules
+    export DATA_DIR="/opt/homelab-data"
+    export SSD_AVAILABLE=false
     
-    # In the next phase, we'll modularize the installation into separate scripts:
-    # - scripts/modules/01-system-prep.sh
-    # - scripts/modules/02-ssd-setup.sh
-    # - scripts/modules/03-adguard.sh
-    # - scripts/modules/04-nextcloud.sh
-    # - scripts/modules/05-wireguard.sh
-    # - scripts/modules/06-squid.sh
-    # - scripts/modules/07-netdata.sh
-    # - scripts/modules/08-nginx.sh
-    # - scripts/modules/09-finalize.sh
+    print_info "🚀 Beginning modular installation..."
     
-    print_warning "Installation script is currently being modularized"
-    print_info "For now, please use the old installation method from the backup branch:"
+    # Phase 1: System preparation
+    print_info "📦 Phase 1: System preparation"
+    download_module "01-system-prep.sh"
+    prepare_system
+    
+    # Phase 2: Storage setup
+    print_info "💾 Phase 2: Storage configuration"
+    download_module "02-storage-setup.sh"
+    setup_storage
+    
+    # Phase 3: AdGuard Home
+    print_info "🛡️ Phase 3: DNS filtering"
+    download_module "03-adguard.sh"
+    install_adguard
+    
+    # Phase 4: Nextcloud
+    print_info "☁️ Phase 4: Personal cloud"
+    download_module "04-nextcloud.sh"
+    install_nextcloud
+    
+    # Phase 5: WireGuard VPN
+    print_info "🔐 Phase 5: VPN server"
+    download_module "05-wireguard.sh"
+    install_wireguard
+    
+    # Phase 6: Squid proxy
+    print_info "🔄 Phase 6: Bandwidth optimization"
+    download_module "06-squid.sh"
+    install_squid
+    
+    # Phase 7: Netdata monitoring
+    print_info "📊 Phase 7: System monitoring"
+    download_module "07-netdata.sh"
+    install_netdata
+    
+    # Phase 8: Nginx web server
+    print_info "🌐 Phase 8: Web dashboard"
+    download_module "08-nginx.sh"
+    install_nginx
+    
+    # Phase 9: Finalization
+    print_info "⚡ Phase 9: Final configuration"
+    download_module "09-finalize.sh"
+    finalize_installation
+    
+    # Installation complete
+    print_success "🎉 ZimaBoard 2 Homelab installation completed successfully!"
     echo ""
-    echo "  git clone -b backup-before-recreation https://github.com/th3cavalry/zimaboard-2-home-lab.git"
-    echo "  cd zimaboard-2-home-lab"
-    echo "  sudo ./scripts/simple-install/ubuntu-homelab-simple.sh"
+    print_info "📋 Your homelab is ready at:"
+    echo "  🌐 Main Dashboard:    http://192.168.8.2"
+    echo "  🛡️ AdGuard Home:      http://192.168.8.2:3000"
+    echo "  ☁️ Nextcloud:         http://192.168.8.2:8000"
+    echo "  📊 Netdata:           http://192.168.8.2:19999"
     echo ""
-    
-    print_info "Repository recreation in progress - stay tuned!"
+    print_warning "⚠️ IMPORTANT: Change default passwords immediately!"
+    print_info "   - AdGuard Home: admin / admin123"
+    print_info "   - Nextcloud: admin / admin123"
+    echo ""
+    print_success "🚀 Your ZimaBoard 2 homelab is ready to use!"
 }
 
 # Run main function
