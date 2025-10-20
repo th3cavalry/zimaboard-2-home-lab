@@ -526,8 +526,9 @@ sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" /etc/nginx/sites-available/homelab
 ln -sf /etc/nginx/sites-available/homelab /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 systemctl enable nginx
-systemctl restart nginx
-print_success "Nginx reverse proxy configured"
+# Don't restart nginx yet - PHP isn't installed, so the config will fail
+# We'll restart it after PHP-FPM is installed
+print_success "Nginx reverse proxy configured (will start after PHP installation)"
 
 # 8. Install Squid Proxy
 print_status "🔄 Installing Squid proxy for bandwidth optimization..."
@@ -649,6 +650,12 @@ apt install -y \
 # Update Nginx configuration with correct PHP version now that PHP is installed
 ACTUAL_PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;")
 sed -i "s/php8\.3-fpm/php${ACTUAL_PHP_VERSION}-fpm/g" /etc/nginx/sites-available/homelab
+
+# Now that PHP-FPM is installed, we can safely start nginx
+print_status "Starting Nginx with PHP-FPM support..."
+systemctl restart php${ACTUAL_PHP_VERSION}-fpm
+systemctl restart nginx
+print_success "Nginx started successfully with PHP ${ACTUAL_PHP_VERSION} support"
 
 # Configure MariaDB
 systemctl start mariadb
