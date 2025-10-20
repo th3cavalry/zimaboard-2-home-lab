@@ -273,13 +273,17 @@ lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep mmcblk
 cat /sys/block/mmcblk0/stat 2>/dev/null || echo "eMMC stats not available"
 ```
 
-**💾 2TB SSD Setup (Automatic):**
-The Ubuntu setup script automatically:
-1. **Detects** attached 2TB SSD (usually `/dev/sda`)
-2. **Partitions** and formats the SSD with ext4
-3. **Mounts** SSD to `/mnt/ssd` for data storage
-4. **Redirects** all service data directories to SSD
-5. **Moves** logs, databases, and cache to SSD
+**💾 2TB SSD Setup (Interactive & Automatic):**
+The Ubuntu setup script now includes **integrated interactive SSD setup**:
+1. **Auto-detects** attached SSDs >500GB (SATA `/dev/sda` and NVMe `/dev/nvme0n1`)
+2. **Interactive menu** with 4 options:
+   - 🆕 **Fresh Format**: Completely erase and setup (recommended for new drives)
+   - 📁 **Use Existing**: Configure with current partitions (preserves data)
+   - ⚙️ **Advanced Setup**: Manual partition selection
+   - ⏭️ **Skip SSD**: Use eMMC-only mode (services still work)
+3. **Safe partitioning** with user confirmation and warnings
+4. **Optimized layout**: 80% data partition + 20% backup partition
+5. **Smart configuration**: All service data automatically redirects to SSD or falls back to eMMC
 
 **Manual SSD verification:**
 ```bash
@@ -358,55 +362,36 @@ echo "✅ Manual SSD setup complete!"
 df -h /mnt/nextcloud-data /mnt/backup-storage
 ```
 
-**🚀 Interactive SSD Setup (User Selectable Formatting):**
-The setup script provides multiple modes based on how you run it:
+**🎯 New! Integrated SSD Setup Experience:**
+The main installer now includes **built-in interactive SSD configuration** - no separate scripts needed!
 
-**🎯 Interactive Mode (Recommended):**
-```bash
-# Download and run interactively
-wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/setup-ssd-storage.sh
-bash setup-ssd-storage.sh
+During installation, the script will:
+- ✅ **Auto-detect** your 2TB SSD (SATA or NVMe)
+- ✅ **Show interactive menu** with safe formatting options
+- ✅ **Confirm destructive operations** with clear warnings
+- ✅ **Create optimized partitions** (80% data, 20% backup)
+- ✅ **Apply performance optimizations** (noatime, TRIM support)
+- ✅ **Graceful fallback** to eMMC-only if no SSD available
+
+**� Interactive Setup Flow:**
+```
+🔍 Detecting storage devices...
+🎯 Found 1 potential SSD: sda 1.8T Samsung_SSD_980
+  
+How would you like to configure your SSD storage?
+1) 🆕 Format and setup fresh (ERASES ALL DATA - recommended for new drives)
+2) 📁 Use existing partitions (preserves existing data)  
+3) ⚙️ Advanced setup (manual partition selection)
+4) ⏭️ Skip SSD setup (use eMMC only)
+
+Select option (1-4): _
 ```
 
-**📋 Interactive Setup Options:**
-1. **Fresh Format** - Completely erase and reformat (for new/empty drives) 
-2. **Use Existing Partitions** - Configure storage with current partitions (preserves data)
-3. **Advanced Mode** - Manual partition selection with optional formatting
-4. **Exit** - Cancel setup
-
-**🔄 Non-Interactive Mode (Piped):**
-```bash
-# Safe mode - uses existing partitions, preserves data
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/setup-ssd-storage.sh | bash
-```
-*Default behavior: Uses existing partitions safely, no data destruction*
-
-**⚠️ Automatic Format Mode (Destructive):**
-For automated deployments that need fresh formatting:
-```bash
-AUTO_FORMAT=1 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/setup-ssd-storage.sh | bash
-```
-**⚠️ WARNING: AUTO_FORMAT=1 will automatically ERASE ALL DATA on your 2TB SSD!**
-
-**📋 What the Automatic Script Does:**
-- ✅ **Auto-detects** 2TB SSD (whether /dev/sda, /dev/sdb, or /dev/sdc)
-- ✅ **Completely erases** existing partitions and data (fresh start)
-- ✅ **Creates fresh GPT partition table** (modern, supports >2TB drives)  
-- ✅ **Formats with ext4** (optimal for SSD performance, 1% reserved)
-- ✅ **Sets up mount points** with SSD-optimized options (noatime)
-- ✅ **Configures storage directories** for services and backups
-- ✅ **Creates organized directories** for different data types
-- ✅ **Applies performance optimizations** (I/O scheduler, TRIM support)
-- ✅ **Sets proper permissions** and ownership for security
-- ✅ **Schedules maintenance** (weekly TRIM for SSD longevity)
-- ✅ **Verifies setup** with comprehensive testing
-
-**🛠️ Format-Only Script (Advanced Users):**
-If you want to format and partition the drive without storage configuration:
-```bash
-# This script only handles the formatting and partitioning
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/format-ssd-only.sh | bash
-```
+**⚠️ Safety Features:**
+- Clear warnings before any destructive operations
+- Confirmation prompts ("Type 'YES' to confirm...")
+- Device verification and size checking
+- Graceful error handling and rollback options
 
 #### 5️⃣ Deploy Complete Homelab (Ubuntu)
 
@@ -439,10 +424,12 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 - ✅ **Better debugging**: You can inspect and modify the script if needed
 - ✅ **Faster re-runs**: No need to re-download if something fails
 - ✅ **Network resilient**: Won't fail if connection drops during execution
+- ✅ **Interactive SSD setup**: Script will detect and offer to format your 2TB SSD automatically
 
 **🎉 That's it! Your Ubuntu homelab is ready!**
 
 The complete setup automatically includes:
+- ✅ **Interactive SSD Setup** (format, use existing, or eMMC-only modes)
 - ✅ **eMMC optimization** (reduced writes by 90%+, extended lifespan)
 - ✅ **2TB SSD configuration** (all data storage and heavy I/O operations)
 - ✅ **Pi-hole DNS filtering** (network-wide ad blocking)
