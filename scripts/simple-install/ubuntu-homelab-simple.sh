@@ -145,11 +145,8 @@ apt install -y nginx
 # Use default PHP version for Ubuntu 24.04 LTS (PHP will be installed later)
 PHP_VERSION="8.3"
 
-# Create Nginx configuration file without heredoc (more reliable for piped execution)
-mkdir -p /etc/nginx/sites-available
-
-# Write configuration line by line to avoid heredoc issues
-cat > /etc/nginx/sites-available/homelab << 'ENDCONFIG'
+# Create Nginx configuration file using tee for better reliability
+tee /etc/nginx/sites-available/homelab > /dev/null << 'NGINXCONF'
 server {
     listen 80 default_server;
     server_name _;
@@ -257,25 +254,22 @@ server {
         try_files $uri $uri/ /index.php$request_uri;
     }
 }
-ENDCONFIG
+NGINXCONF
 server {
     listen 80 default_server;
     server_name _;
     
-    # Main dashboard
     location / {
         root /var/www/html;
         index index.html;
     }
     
-    # Pi-hole admin interface
     location /admin {
         proxy_pass http://127.0.0.1:8080/admin;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
     
-    # Netdata monitoring
     location /netdata/ {
         proxy_pass http://127.0.0.1:19999/;
         proxy_set_header Host $host;
@@ -283,14 +277,12 @@ server {
     }
 }
 
-# Nextcloud
 server {
     listen 8000;
     server_name _;
     root /var/www/nextcloud;
     index index.php index.html;
 
-    # Security headers
     add_header Referrer-Policy "no-referrer" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -298,13 +290,9 @@ server {
     add_header X-Robots-Tag "noindex, nofollow" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # Remove X-Powered-By which could leak info
     fastcgi_hide_header X-Powered-By;
-
-    # Path to the root of Nextcloud
     root /var/www/nextcloud;
 
-    # Specify how to handle directories
     location = / {
         if ( $http_user_agent ~ ^DavClnt ) {
             return 302 /remote.php/webdav/$is_args$args;
@@ -317,7 +305,6 @@ server {
         access_log off;
     }
 
-    # Make a regex exception for `/.well-known` location
     location ^~ /.well-known {
         location = /.well-known/carddav { return 301 /remote.php/dav/; }
         location = /.well-known/caldav  { return 301 /remote.php/dav/; }
@@ -328,14 +315,10 @@ server {
         return 301 /index.php$request_uri;
     }
 
-    # Rules borrowed from `.htaccess` to hide certain paths.
     location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)(?:$|/)  { return 404; }
     location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console)                { return 404; }
 
-    # Ensure this block, which passes PHP files to the PHP processor, is above the blocks
-    # which handle static assets (as a `location` block's priority increases with its length).
     location ~ \.php(?:$|/) {
-        # Required for legacy support
         rewrite ^/(?!index|remote|public|cron|core\/ajax\/update|status|ocs\/v[12]|updater\/.+|oc[ms]-provider\/.+|.+\/richdocumentscode\/proxy) /index.php$request_uri;
 
         fastcgi_split_path_info ^(.+?\.php)(/.*)$;
@@ -359,7 +342,6 @@ server {
         fastcgi_buffering off;
     }
 
-    # Serve static files
     location ~ \.(?:css|js|svg|gif|png|jpg|ico|wasm|tflite|map|ogg|flac)$ {
         try_files $uri /index.php$request_uri;
         add_header Cache-Control "public, max-age=15778463, immutable";
@@ -372,7 +354,6 @@ server {
         access_log off;
     }
 
-    # Rule borrowed from `.htaccess`
     location /remote {
         return 301 /remote.php$request_uri;
     }
@@ -381,7 +362,7 @@ server {
         try_files $uri $uri/ /index.php$request_uri;
     }
 }
-ENDCONFIG
+NGINXCONF
 
 # Substitute the PHP version in the configuration
 sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" /etc/nginx/sites-available/homelab
