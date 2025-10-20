@@ -409,8 +409,8 @@ apt install -y nginx
 # Use default PHP version for Ubuntu 24.04 LTS (PHP will be installed later)
 PHP_VERSION="8.3"
 
-# Create Nginx configuration file using tee for better reliability
-tee /etc/nginx/sites-available/homelab > /dev/null << 'NGINXCONF'
+# Create Nginx configuration file using cat for maximum reliability
+cat > /etc/nginx/sites-available/homelab << 'NGINXEOF'
 server {
     listen 80 default_server;
     server_name _;
@@ -475,7 +475,7 @@ server {
     location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console)                { return 404; }
 
     location ~ \.php(?:$|/) {
-        rewrite ^/(?!index|remote|public|cron|core\/ajax\/update|status|ocs\/v[12]|updater\/.+|oc[ms]-provider\/.+|.+\/richdocumentscode\/proxy) /index.php$request_uri;
+        rewrite ^/(?!index|remote|public|cron|core/ajax/update|status|ocs/v[12]|updater/.+|oc[ms]-provider/.+|.+/richdocumentscode/proxy) /index.php$request_uri;
 
         fastcgi_split_path_info ^(.+?\.php)(/.*)$;
         set $path_info $fastcgi_path_info;
@@ -518,7 +518,7 @@ server {
         try_files $uri $uri/ /index.php$request_uri;
     }
 }
-NGINXCONF
+NGINXEOF
 
 # Substitute the PHP version in the configuration
 sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" /etc/nginx/sites-available/homelab
