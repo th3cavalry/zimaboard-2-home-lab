@@ -13,7 +13,15 @@
 **Just want to get started? Here's the super simple approach:**
 
 1. **Install Ubuntu Server 24.04 LTS** on your ZimaBoard 2 → [Jump to Installation](#ubuntu-installation)
-2. **Run one command** to deploy everything:
+2. **Run the deployment script** (recommended method):
+   ```bash
+   # Download the script first (most reliable)
+   wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh
+   chmod +x ubuntu-homelab-simple.sh
+   sudo ./ubuntu-homelab-simple.sh
+   ```
+   
+   **OR use the one-command approach:**
    ```bash
    curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
    ```
@@ -401,13 +409,36 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 ```
 
 #### 5️⃣ Deploy Complete Homelab (Ubuntu)
+
+**🎯 Recommended Method (Most Reliable):**
 ```bash
 # SSH into your ZimaBoard first
 ssh username@192.168.8.2
 
-# One command installs everything with eMMC optimization + 2TB SSD setup!
+# Download the script first for better reliability
+wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh
+
+# Make it executable
+chmod +x ubuntu-homelab-simple.sh
+
+# Run the complete installation with eMMC optimization + 2TB SSD setup!
+sudo ./ubuntu-homelab-simple.sh
+```
+
+**Alternative One-Command Method:**
+```bash
+# SSH into your ZimaBoard first
+ssh username@192.168.8.2
+
+# One command installs everything (if you prefer this approach)
 curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
 ```
+
+**💡 Why Download First?**
+- ✅ **More reliable**: Avoids piped execution issues
+- ✅ **Better debugging**: You can inspect and modify the script if needed
+- ✅ **Faster re-runs**: No need to re-download if something fails
+- ✅ **Network resilient**: Won't fail if connection drops during execution
 
 **🎉 That's it! Your Ubuntu homelab is ready!**
 
