@@ -48,6 +48,259 @@ fi
 
 print_status "Detected Ubuntu Server - continuing with installation..."
 
+# Interactive SSD Setup Function
+setup_ssd_storage() {
+    print_status "🔍 Detecting available storage devices..."
+    
+    # Detect potential SSD devices
+    DETECTED_SSDS=()
+    for device in /dev/sd? /dev/nvme?n?; do
+        if [ -b "$device" ]; then
+            SIZE=$(lsblk -b -d -o SIZE "$device" 2>/dev/null | tail -n1)
+            # Look for devices larger than 500GB (assuming 2TB SSD)
+            if [ "$SIZE" -gt 500000000000 ]; then
+                DEVICE_INFO=$(lsblk -d -o NAME,SIZE,MODEL "$device" 2>/dev/null | tail -n1)
+                DETECTED_SSDS+=("$device:$DEVICE_INFO")
+            fi
+        fi
+    done
+    
+    if [ ${#DETECTED_SSDS[@]} -eq 0 ]; then
+        print_warning "No large storage devices detected. Proceeding with eMMC-only setup."
+        print_warning "Services will work but performance will be limited."
+        return 1
+    fi
+    
+    echo ""
+    print_status "🎯 Found ${#DETECTED_SSDS[@]} potential SSD(s):"
+    for i in "${!DETECTED_SSDS[@]}"; do
+        IFS=':' read -r device info <<< "${DETECTED_SSDS[$i]}"
+        echo "  $((i+1)). $info"
+    done
+    echo ""
+    
+    # Interactive menu
+    echo "How would you like to configure your SSD storage?"
+    echo "1) 🆕 Format and setup fresh (ERASES ALL DATA - recommended for new drives)"
+    echo "2) 📁 Use existing partitions (preserves existing data)"
+    echo "3) ⚙️  Advanced setup (manual partition selection)"
+    echo "4) ⏭️  Skip SSD setup (use eMMC only)"
+    echo ""
+    
+    while true; do
+        read -p "Select option (1-4): " choice
+        case $choice in
+            1)
+                setup_fresh_ssd
+                break
+                ;;
+            2)
+                setup_existing_ssd
+                break
+                ;;
+            3)
+                setup_advanced_ssd
+                break
+                ;;
+            4)
+                print_warning "Skipping SSD setup - using eMMC only"
+                return 1
+                ;;
+            *)
+                echo "❌ Invalid option. Please select 1-4."
+                ;;
+        esac
+    done
+}
+
+# Fresh SSD Setup (Format and partition)
+setup_fresh_ssd() {
+    if [ ${#DETECTED_SSDS[@]} -eq 1 ]; then
+        IFS=':' read -r SSD_DEVICE info <<< "${DETECTED_SSDS[0]}"
+    else
+        echo ""
+        print_status "Select SSD to format:"
+        for i in "${!DETECTED_SSDS[@]}"; do
+            IFS=':' read -r device info <<< "${DETECTED_SSDS[$i]}"
+            echo "  $((i+1)). $info"
+        done
+        
+        while true; do
+            read -p "Select SSD (1-${#DETECTED_SSDS[@]}): " ssd_choice
+            if [[ "$ssd_choice" =~ ^[1-9][0-9]*$ ]] && [ "$ssd_choice" -le ${#DETECTED_SSDS[@]} ]; then
+                IFS=':' read -r SSD_DEVICE info <<< "${DETECTED_SSDS[$((ssd_choice-1))]}"
+                break
+            else
+                echo "❌ Invalid selection."
+            fi
+        done
+    fi
+    
+    echo ""
+    print_warning "⚠️  WARNING: This will COMPLETELY ERASE ALL DATA on $SSD_DEVICE"
+    print_warning "⚠️  Make sure this is the correct device and you have backups!"
+    echo ""
+    
+    read -p "Type 'YES' to confirm you want to erase $SSD_DEVICE: " confirm
+    if [ "$confirm" != "YES" ]; then
+        print_error "Operation cancelled. Exiting."
+        exit 1
+    fi
+    
+    print_status "🔧 Formatting $SSD_DEVICE for homelab use..."
+    
+    # Install partitioning tools
+    apt install -y parted
+    
+    # Unmount any existing partitions
+    for part in ${SSD_DEVICE}*; do
+        if [ -b "$part" ] && [ "$part" != "$SSD_DEVICE" ]; then
+            umount "$part" 2>/dev/null || true
+        fi
+    done
+    
+    # Create GPT partition table and two partitions
+    parted -s "$SSD_DEVICE" mklabel gpt
+    parted -s "$SSD_DEVICE" mkpart primary ext4 0% 80%
+    parted -s "$SSD_DEVICE" mkpart primary ext4 80% 100%
+    
+    # Wait for kernel to recognize partitions
+    sleep 2
+    partprobe "$SSD_DEVICE" 2>/dev/null || true
+    sleep 1
+    
+    # Determine partition names
+    if [[ "$SSD_DEVICE" =~ nvme ]]; then
+        DATA_PARTITION="${SSD_DEVICE}p1"
+        BACKUP_PARTITION="${SSD_DEVICE}p2"
+    else
+        DATA_PARTITION="${SSD_DEVICE}1"
+        BACKUP_PARTITION="${SSD_DEVICE}2"
+    fi
+    
+    print_status "📁 Creating filesystems..."
+    
+    # Format partitions with ext4
+    mkfs.ext4 -F "$DATA_PARTITION" -L "homelab-data"
+    mkfs.ext4 -F "$BACKUP_PARTITION" -L "homelab-backup"
+    
+    # Create mount points and mount
+    mkdir -p /mnt/ssd-data /mnt/ssd-backup
+    mount "$DATA_PARTITION" /mnt/ssd-data
+    mount "$BACKUP_PARTITION" /mnt/ssd-backup
+    
+    # Add to fstab for persistent mounting
+    DATA_UUID=$(blkid -s UUID -o value "$DATA_PARTITION")
+    BACKUP_UUID=$(blkid -s UUID -o value "$BACKUP_PARTITION")
+    
+    echo "UUID=$DATA_UUID /mnt/ssd-data ext4 defaults,noatime 0 2" >> /etc/fstab
+    echo "UUID=$BACKUP_UUID /mnt/ssd-backup ext4 defaults,noatime 0 2" >> /etc/fstab
+    
+    print_success "✅ SSD formatted and mounted successfully!"
+    print_success "   Data partition: /mnt/ssd-data (main storage)"
+    print_success "   Backup partition: /mnt/ssd-backup (backups)"
+    
+    return 0
+}
+
+# Use existing SSD partitions
+setup_existing_ssd() {
+    print_status "🔍 Scanning for existing partitions..."
+    
+    AVAILABLE_PARTITIONS=()
+    for device_info in "${DETECTED_SSDS[@]}"; do
+        IFS=':' read -r device info <<< "$device_info"
+        
+        # Check for existing partitions
+        for part in ${device}*; do
+            if [ -b "$part" ] && [ "$part" != "$device" ]; then
+                FSTYPE=$(lsblk -f -o FSTYPE "$part" 2>/dev/null | tail -n1)
+                SIZE=$(lsblk -b -o SIZE "$part" 2>/dev/null | tail -n1 | numfmt --to=iec)
+                if [ -n "$FSTYPE" ]; then
+                    AVAILABLE_PARTITIONS+=("$part:$FSTYPE:$SIZE")
+                fi
+            fi
+        done
+    done
+    
+    if [ ${#AVAILABLE_PARTITIONS[@]} -eq 0 ]; then
+        print_error "No existing formatted partitions found. Please use fresh format option."
+        return 1
+    fi
+    
+    echo ""
+    print_status "📂 Found existing partitions:"
+    for i in "${!AVAILABLE_PARTITIONS[@]}"; do
+        IFS=':' read -r partition fstype size <<< "${AVAILABLE_PARTITIONS[$i]}"
+        echo "  $((i+1)). $(basename $partition) - $fstype - $size"
+    done
+    echo ""
+    
+    read -p "Select partition for main data storage (1-${#AVAILABLE_PARTITIONS[@]}): " part_choice
+    if [[ ! "$part_choice" =~ ^[1-9][0-9]*$ ]] || [ "$part_choice" -gt ${#AVAILABLE_PARTITIONS[@]} ]; then
+        print_error "Invalid selection."
+        return 1
+    fi
+    
+    IFS=':' read -r DATA_PARTITION fstype size <<< "${AVAILABLE_PARTITIONS[$((part_choice-1))]}"
+    
+    # Mount the selected partition
+    mkdir -p /mnt/ssd-data
+    mount "$DATA_PARTITION" /mnt/ssd-data 2>/dev/null || {
+        print_error "Failed to mount $DATA_PARTITION"
+        return 1
+    }
+    
+    # Add to fstab
+    DATA_UUID=$(blkid -s UUID -o value "$DATA_PARTITION")
+    if ! grep -q "$DATA_UUID" /etc/fstab; then
+        echo "UUID=$DATA_UUID /mnt/ssd-data ext4 defaults,noatime 0 2" >> /etc/fstab
+    fi
+    
+    print_success "✅ Using existing partition $DATA_PARTITION for data storage"
+    return 0
+}
+
+# Advanced SSD setup
+setup_advanced_ssd() {
+    print_warning "Advanced setup selected - you'll need to manually configure partitions."
+    print_status "Available devices:"
+    
+    lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT
+    echo ""
+    
+    read -p "Enter the partition path for data storage (e.g., /dev/sda1): " DATA_PARTITION
+    
+    if [ ! -b "$DATA_PARTITION" ]; then
+        print_error "$DATA_PARTITION is not a valid block device"
+        return 1
+    fi
+    
+    mkdir -p /mnt/ssd-data
+    
+    # Test mount
+    if mount "$DATA_PARTITION" /mnt/ssd-data 2>/dev/null; then
+        DATA_UUID=$(blkid -s UUID -o value "$DATA_PARTITION")
+        if ! grep -q "$DATA_UUID" /etc/fstab 2>/dev/null; then
+            echo "UUID=$DATA_UUID /mnt/ssd-data ext4 defaults,noatime 0 2" >> /etc/fstab
+        fi
+        print_success "✅ Advanced setup complete using $DATA_PARTITION"
+        return 0
+    else
+        print_error "Failed to mount $DATA_PARTITION"
+        return 1
+    fi
+}
+
+# Run SSD setup
+if setup_ssd_storage; then
+    SSD_AVAILABLE=true
+    print_success "🎉 SSD storage configured successfully!"
+else
+    SSD_AVAILABLE=false
+    print_warning "📱 Continuing with eMMC-only setup"
+fi
+
 # 1. System Updates and Basic Setup
 print_status "📦 Updating system packages..."
 apt update && apt upgrade -y
@@ -102,17 +355,28 @@ create 644 syslog adm" > /etc/logrotate.conf
 
 print_success "eMMC optimizations applied"
 
-# 5. 2TB SSD Setup
-print_status "💾 Setting up 2TB SSD for data storage..."
-# Create data directories on SSD
-mkdir -p /mnt/ssd-data/{nextcloud,pihole,squid-cache,backups,logs}
-
-# Move log directory to SSD to reduce eMMC writes
-if [ ! -L /var/log ] && [ -d /mnt/ssd-data ]; then
-    cp -a /var/log/* /mnt/ssd-data/logs/ 2>/dev/null || true
-    mv /var/log /var/log.old
-    ln -s /mnt/ssd-data/logs /var/log
-    print_success "Moved logs to SSD"
+# 5. Configure Data Storage Directories
+if [ "$SSD_AVAILABLE" = true ]; then
+    print_status "💾 Configuring SSD data directories..."
+    # Create data directories on SSD
+    mkdir -p /mnt/ssd-data/{nextcloud,pihole,squid-cache,backups,logs}
+    
+    # Move log directory to SSD to reduce eMMC writes
+    if [ ! -L /var/log ] && [ -d /mnt/ssd-data ]; then
+        cp -a /var/log/* /mnt/ssd-data/logs/ 2>/dev/null || true
+        mv /var/log /var/log.old
+        ln -s /mnt/ssd-data/logs /var/log
+        print_success "Moved logs to SSD for eMMC longevity"
+    fi
+    
+    DATA_DIR="/mnt/ssd-data"
+    print_success "Using SSD for all service data"
+else
+    print_status "💾 Configuring eMMC data directories..."
+    # Create data directories on eMMC (fallback)
+    mkdir -p /opt/homelab-data/{nextcloud,pihole,squid-cache,backups,logs}
+    DATA_DIR="/opt/homelab-data"
+    print_warning "Using eMMC storage - consider adding SSD for better performance"
 fi
 
 # 6. Install Pi-hole
@@ -121,9 +385,9 @@ mkdir -p /etc/pihole
 echo "WEBPASSWORD=admin123" > /etc/pihole/setupVars.conf
 curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
 
-# Configure Pi-hole to use SSD for database
+# Configure Pi-hole to use designated storage
 if [ -f /etc/pihole/pihole-FTL.conf ]; then
-    echo "DBFILE=/mnt/ssd-data/pihole/pihole-FTL.db" >> /etc/pihole/pihole-FTL.conf
+    echo "DBFILE=${DATA_DIR}/pihole/pihole-FTL.db" >> /etc/pihole/pihole-FTL.conf
 fi
 
 systemctl enable pihole-FTL
@@ -274,8 +538,8 @@ cat > /etc/squid/squid.conf << 'SQUID_EOF'
 # Cellular-optimized Squid configuration
 http_port 3128
 
-# Cache directory on SSD
-cache_dir ufs /mnt/ssd-data/squid-cache 8192 16 256
+# Cache directory
+cache_dir ufs ${DATA_DIR}/squid-cache 8192 16 256
 
 # Memory cache
 cache_mem 512 MB
@@ -300,8 +564,8 @@ positive_dns_ttl 1 hour
 negative_dns_ttl 30 seconds
 SQUID_EOF
 
-mkdir -p /mnt/ssd-data/squid-cache
-chown proxy:proxy /mnt/ssd-data/squid-cache
+mkdir -p ${DATA_DIR}/squid-cache
+chown proxy:proxy ${DATA_DIR}/squid-cache
 squid -z 2>/dev/null || true
 systemctl enable squid
 systemctl restart squid
@@ -417,9 +681,9 @@ tar -xjf nextcloud-${NEXTCLOUD_VERSION}.tar.bz2
 cp -r nextcloud /var/www/
 chown -R www-data:www-data /var/www/nextcloud
 
-# Create Nextcloud data directory on SSD
-mkdir -p /mnt/ssd-data/nextcloud
-chown -R www-data:www-data /mnt/ssd-data/nextcloud
+# Create Nextcloud data directory
+mkdir -p ${DATA_DIR}/nextcloud
+chown -R www-data:www-data ${DATA_DIR}/nextcloud
 
 # Configure PHP for Nextcloud
 # Update PHP memory limit and other settings
@@ -441,7 +705,7 @@ sudo -u www-data php occ maintenance:install \
     --database-pass="nextcloud123" \
     --admin-user="admin" \
     --admin-pass="admin123" \
-    --data-dir="/mnt/ssd-data/nextcloud"
+    --data-dir="${DATA_DIR}/nextcloud"
 
 # Configure trusted domains
 sudo -u www-data php occ config:system:set trusted_domains 0 --value="localhost"
