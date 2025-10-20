@@ -447,7 +447,6 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
 
     fastcgi_hide_header X-Powered-By;
-    root /var/www/nextcloud;
 
     location = / {
         if ( $http_user_agent ~ ^DavClnt ) {
