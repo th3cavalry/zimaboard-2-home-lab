@@ -1,1323 +1,156 @@
-# 🏠 ZimaBoard 2 Simple Homelab - Ubuntu Edition
+# 🏠 ZimaBoard 2 Homelab - Ubuntu Edition
 
-**The complete, tested, one-command security homelab for ZimaBoard 2 + cellular internet**
+**The ultimate one-command security homelab for ZimaBoard 2 + cellular internet**
 
-[![Ubuntu Server](https://img.shields.io/badge/Ubuntu-Server%2024.04%20LTS-orange)](https://ubuntu.com/server)
-[![ZimaBoard 2](https://img.shields.io/badge/ZimaBoard-2%20Supported-blue)](https://www.zimaspace.com/)
-[![eMMC Optimized](https://img.shields.io/badge/eMMC-Optimized-green)](https://github.com/th3cavalry/zimaboard-2-home-lab)
-[![One Command](https://img.shields.io/badge/Install-One%20Command-brightgreen)](https://github.com/th3cavalry/zimaboard-2-home-lab)
-[![No Containers](https://img.shields.io/badge/No%20Containers-Simple-success)](https://github.com/th3cavalry/zimaboard-2-home-lab)
+[![Ubuntu Server](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?style=for-the-badge&logo=ubuntu)](https://ubuntu.com/server)
+[![ZimaBoard](https://img.shields.io/badge/ZimaBoard-2_Supported-0066CC?style=for-the-badge)](https://www.zimaspace.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Maintenance](https://img.shields.io/badge/Maintained-Yes-brightgreen?style=for-the-badge)](https://github.com/th3cavalry/zimaboard-2-home-lab)
 
-## 🚀 Quick Start (TL;DR)
-
-**Just want to get started? Here's the super simple approach:**
-
-1. **Install Ubuntu Server 24.04 LTS** on your ZimaBoard 2 → [Jump to Installation](#ubuntu-installation)
-2. **Run the deployment script** (recommended method):
-   ```bash
-   # Download the script first (most reliable)
-   wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh
-   chmod +x ubuntu-homelab-simple.sh
-   sudo ./ubuntu-homelab-simple.sh
-   ```
-   
-   **OR use the one-command approach:**
-   ```bash
-   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
-   ```
-3. **Access your services** at: `http://192.168.8.2` 🎉
-
-**That's it!** Your complete security homelab is ready - **no containers, no complexity, just works!**
-
-**🔥 Now with AdGuard Home by default** - Modern UI, DNS-over-HTTPS, and NO port conflicts!
+> 🚀 **Deploy a complete security homelab in minutes** - No containers, no complexity, just works!
 
 ---
 
-### 🔄 Want Pi-hole Instead?
+## ✨ Features
 
-**Prefer Pi-hole over AdGuard Home?** You can install the Pi-hole version or migrate to Pi-hole.
-
-See the [Pi-hole Installation Guide](docs/PIHOLE_ALTERNATIVE.md) for instructions.
-
----
-
-### 🧹 Uninstall (Complete Removal)
-
-**Want to completely remove the homelab and start fresh?**
-
-**Recommended method (download first):**
-```bash
-# Download the uninstall script
-wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/uninstall-homelab.sh
-chmod +x uninstall-homelab.sh
-sudo ./uninstall-homelab.sh
-```
-
-**OR use the one-command approach:**
-```bash
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/uninstall-homelab.sh | sudo bash
-```
-
-**What the uninstall script removes:**
-- ✅ All homelab services (AdGuard Home, Nextcloud, Wireguard, Squid, Netdata, Nginx)
-- ✅ All configuration files and databases
-- ✅ All data directories (eMMC and SSD)
-- ✅ Firewall rules
-- ✅ System optimizations (restores defaults)
-- ✅ Service users and cron jobs
-
-**⚠️ Note:** A reboot is recommended after uninstall to fully clear all services and mounts.
+- 🔒 **Network-wide ad blocking** with AdGuard Home (DNS-over-HTTPS included)
+- ☁️ **Personal cloud storage** with Nextcloud (office suite, calendar, contacts)
+- 🔐 **Secure VPN** with WireGuard for remote access
+- ⚡ **Bandwidth optimization** with Squid proxy (50-75% savings on cellular)
+- 📊 **Real-time monitoring** with Netdata
+- 💾 **Smart storage** - OS on eMMC, data on SSD
+- 🛡️ **Built-in security** - UFW firewall, fail2ban, automatic updates
 
 ---
 
-## 🎯 Deployment Status
-
-**✅ FULLY OPTIMIZED & RESEARCH-VALIDATED (October 2025)**
-
-**🎉 NEXTCLOUD UPGRADE COMPLETE!** This configuration now includes Nextcloud instead of Seafile:
-
-This configuration represents the optimal 2025 homelab setup based on comprehensive research:
-- **Ubuntu Server 24.04 LTS** running on 64GB eMMC (5-year LTS support)
-- **All services running directly on the OS** - no containers, maximum performance!
-- **2TB SSD storage** optimized for all data operations and eMMC longevity
-- **2025 service alternatives** researched from awesome-selfhosted database (4,000+ services analyzed)
-- **Real-world validation** of eMMC optimizations and cellular bandwidth savings
-- **🚀 UPGRADED: Nextcloud replaces Seafile** with office suite, calendar, contacts, 400+ apps!
-
-**Current Service Status:**
-```
-Service      Status    Port      Purpose                       2025 Rating
-AdGuard Home ✅        :3000     DNS + modern UI (default)     Excellent ⭐⭐⭐⭐⭐
-Pi-hole      �        :8080     DNS filtering (optional)      Excellent ⭐⭐⭐⭐⭐
-Nextcloud    ✅        :8000     Personal cloud + office suite Excellent ⭐⭐⭐⭐⭐ (UPGRADED!)  
-Wireguard    ✅        :51820    VPN server (UDP)              Gold Standard ⭐⭐⭐⭐⭐
-Squid        ✅        :3128     Bandwidth optimization        Excellent ⭐⭐⭐⭐⭐
-Netdata      ✅        :19999    System monitoring             Perfect ⭐⭐⭐⭐⭐
-Nginx        ✅        :80       Web services & reverse proxy  Excellent ⭐⭐⭐⭐⭐
-```
-
-**🔥 AdGuard Home is now the default** - No port conflicts, modern UI, DNS-over-HTTPS built-in!
-
-**🎯 Access everything at:** `http://192.168.8.2` (nginx on port 80 - no conflicts!)
-
-**📊 2025 Research Summary:**
-- ✅ **OS Choice Validated**: Ubuntu Server 24.04 LTS is optimal for embedded systems
-- ✅ **Service Selection**: All current choices rank in top 3 for their categories  
-- ✅ **Architecture Approach**: Direct installation beats containerization for small setups
-- ✅ **Future Upgrade Path**: Nextcloud upgrade complete! Next: Immich, Vaultwarden
-
----
-
-## 📋 What You Get
-
-This homelab provides enterprise-grade security for your home network, optimized for ZimaBoard 2 + cellular internet:
-
-### 🛡️ Security Features
-- **🔒 DNS Ad-Blocking**: AdGuard Home with DNS-over-HTTPS (blocks 95% of ads & malware)
-- **🚨 Intrusion Prevention**: Fail2ban (stops brute force attacks)
-- **🔐 Secure VPN**: Wireguard (mobile access from anywhere)
-- **🦠 Virus Protection**: ClamAV (real-time scanning)
-- **🌐 Web Filtering**: Advanced streaming ad-blocking
-
-### 📊 Storage & Performance  
-- **☁️ Personal Cloud**: Nextcloud (file sync, calendar, contacts, office suite, 400+ apps)
-- **⚡ Bandwidth Optimization**: Squid proxy (50-75% cellular savings)
-- **📊 Real-time Monitoring**: Netdata (zero-config system monitoring)
-- **💾 Automatic Backups**: System backups & data protection
-- **🔧 eMMC+SSD Optimization**: OS on eMMC, all data on 2TB SSD for maximum longevity
-
-### 🎯 Why This Simple Setup?
-- **✅ One Command Install**: Complete deployment in minutes
-- **✅ No Containers**: All services run directly on Ubuntu - simple & fast
-- **✅ Cellular Optimized**: Saves 50-75% bandwidth on cellular internet
-- **✅ Beginner Friendly**: No virtualization knowledge required
-- **✅ Lower Resource Usage**: No container overhead - more performance
-- **✅ Easier Troubleshooting**: Direct access to all services and logs
-- **✅ 2025 Optimized**: Latest best practices and security standards
-
----
-
-## 🎯 Table of Contents
-
-| Section | Description |
-|---------|-------------|
-| [🚀 Quick Start](#quick-start-tldr) | Get running in 5 minutes |
-| [💾 Installation](#ubuntu-installation) | Step-by-step Ubuntu setup |
-| [🌐 Services](#services--access) | What's included and how to access |
-| [⚙️ Configuration](#configuration--management) | Network setup and management |
-| [🔧 Troubleshooting](#troubleshooting) | Common issues and solutions |
-| [📚 Alternatives](#alternative-approaches) | Docker, Proxmox, and other options |
-
----
-
-## 💾 Ubuntu Installation
+## 🚀 Quick Start
 
 ### Prerequisites
-- **ZimaBoard 2** (16GB RAM recommended, 8GB minimum)
-- **64GB eMMC storage** for Ubuntu Server OS (standard on ZimaBoard 2)
-- **2TB+ SSD** (recommended) for all homelab data and services
-- **8GB+ USB drive** for installation media
-- **Network connection** for setup and updates
 
-**📱 eMMC-Specific Requirements:**
-- 64GB eMMC (standard on ZimaBoard 2 - excellent for wear leveling)
-- eMMC will host Ubuntu OS + all services (simplified approach)
-- eMMC must support standard SATA/eMMC interface
-- BIOS/UEFI must detect eMMC as bootable device
-- Stable power supply (eMMC sensitive to power fluctuations)
+- **ZimaBoard 2** (16GB RAM recommended)
+- **Ubuntu Server 24.04 LTS** installed
+- **2TB+ SSD** (recommended for data storage)
+- **Network connection** (Ethernet)
 
-**💾 SSD Requirements (Optional but Recommended):**
-- **2TB+ SSD** for user data, logs, cache, and backups
-- SSD will host: AdGuard Home database, Nextcloud files, Squid cache, system logs
-- NVMe SSD preferred for best performance, but SATA works fine
-- **Note**: Services work without SSD, but SSD greatly improves performance and eMMC lifespan
-
-### Step-by-Step Installation
-
-#### 1️⃣ Download Ubuntu Server 24.04 LTS
-```bash
-# Download Ubuntu Server 24.04 LTS (Latest LTS - 5 years support)
-wget https://releases.ubuntu.com/24.04/ubuntu-24.04.3-live-server-amd64.iso
-
-# Verify checksum (recommended)
-sha256sum ubuntu-24.04.3-live-server-amd64.iso
-# Check against official checksums at: https://releases.ubuntu.com/24.04/SHA256SUMS
-```
-
-**📱 Why Ubuntu Server 24.04 LTS:**
-- **5 years** of Long Term Support (until 2029)
-- **Excellent eMMC support** out of the box
-- **Perfect for ZimaBoard 2** - optimized for ARM and x86 embedded systems
-- **Huge community** and extensive documentation
-- **Easy package management** with apt
-- **Minimal resource usage** compared to virtualization platforms
-
-#### 2️⃣ Create Installation USB
-```bash
-# Linux/macOS (replace /dev/sdX with your USB drive)
-sudo dd if=ubuntu-24.04.3-live-server-amd64.iso of=/dev/sdX bs=4M status=progress
-
-# Windows: Use Rufus, balenaEtcher, or similar tool
-# - Select "GPT" partition scheme for UEFI systems  
-# - Use "DD Image" mode for best compatibility
-# - Ensure "Create a bootable disk using" is set to "ISO Image"
-```
-
-**⚠️ eMMC Storage Notes:**
-- eMMC storage appears as `/dev/mmcblk0` during installation
-- Make sure eMMC is properly detected in BIOS/UEFI
-- Ubuntu installer automatically detects and configures eMMC properly
-
-#### 3️⃣ Configure ZimaBoard 2 BIOS/UEFI
-- Power on ZimaBoard 2, press **F11** or **Delete** for BIOS/UEFI
-- **Optional**: Enable Intel VT-x (not required for simple setup)
-- Set **USB boot** as first priority  
-- **Enable** UEFI boot mode (recommended) or Legacy mode (if needed)
-- **eMMC Settings**:
-  - Ensure eMMC is detected and enabled
-  - Set eMMC mode to "HS400" if available (fastest)
-  - Enable "eMMC Boot" support
-- **Save and exit**
-
-**🔧 eMMC-Specific BIOS Notes:**
-- Some ZimaBoard units may show eMMC as "MMC Device" or "Internal Storage"
-- Verify eMMC appears in storage devices list
-- eMMC shows as 64GB on ZimaBoard 2 (standard configuration)
-- **No virtualization features needed** for this simple setup
-
-#### 4️⃣ Install Ubuntu Server 24.04 LTS
-- Boot from USB drive
-- Select **"Try or Install Ubuntu Server"**
-- Choose your language and keyboard layout
-- **Network Configuration**: Configure static IP or use DHCP (can change later)
-- **Storage Configuration**: 
-  - **Target**: Select eMMC device (shows as 64GB storage on ZimaBoard 2)
-  - **Partitioning**: Use entire disk (recommended) or custom
-  - **Filesystem**: ext4 (optimal for eMMC longevity)
-
-**🏗️ Recommended Storage Layout:**
-```
-/dev/mmcblk0p1  512MB   EFI System Partition
-/dev/mmcblk0p2  60GB    Root filesystem (/) - Ubuntu + all services
-/dev/mmcblk0p3  4GB     Swap partition
-```
-
-**� User Configuration:**
-- **Your name**: Your full name
-- **Server name**: `zimaboard` (recommended)
-- **Username**: Create a user (e.g., `admin`)
-- **Password**: Set a strong password
-- ✅ **Install OpenSSH server** (recommended for remote access)
-
-**📦 Software Selection:**
-- Skip featured server snaps for now (we'll install what we need)
-- Continue with base installation
-
-**⚡ Installation Process:**
-- Installation typically takes 10-20 minutes on eMMC
-- Ubuntu automatically optimizes for eMMC storage
-- **Reboot** when prompted and remove USB drive
-
-**🌐 Network Configuration (Post-Install):**
-```bash
-# Set static IP (recommended)
-sudo nano /etc/netplan/00-installer-config.yaml
-
-# Example configuration:
-network:
-  version: 2
-  ethernets:
-    eth0:  # or your interface name
-      addresses: [192.168.8.2/24]
-      gateway4: 192.168.8.1
-      nameservers:
-        addresses: [1.1.1.1, 8.8.8.8]
-
-# Apply configuration
-sudo netplan apply
-```
-
-**📊 eMMC Longevity with Ubuntu:**
-- **Ubuntu Server writes**: 0.5-2 TB annually (OS + services)
-- **64GB eMMC lifespan**: ~20 TB writes minimum (≈10-40 years)
-- **With SSD optimization**: Lifespan can exceed 50+ years
-- **With SSD optimization**: Lifespan extends significantly
-- **Automatic eMMC optimizations**: Applied by our setup script
-
-#### 5️⃣ Initial Ubuntu Configuration
-```bash
-# SSH into your ZimaBoard
-ssh username@192.168.8.2
-# Replace 'username' with the user you created during installation
-
-# Update system and install essential tools
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl wget git htop tree ufw
-
-# Verify system info
-cat /etc/os-release  # Confirm Ubuntu version
-df -h               # Check storage usage
-free -h             # Check memory
-
-# Verify eMMC is detected
-ls /dev/mmcblk* 2>/dev/null || echo "eMMC not detected"
-lsblk | grep mmcblk  # Show eMMC partitions
-
-# Check for SSD
-lsblk | grep -E "sd[a-z]|nvme"  # Look for attached SSD
-```
-
-**🔧 Post-Installation eMMC Checks:**
-```bash
-# Verify eMMC is properly mounted
-mount | grep mmcblk
-lsblk -o NAME,SIZE,TYPE,MOUNTPOINT | grep mmcblk
-
-# Check eMMC health (if available)
-cat /sys/block/mmcblk0/stat 2>/dev/null || echo "eMMC stats not available"
-```
-
-**💾 2TB SSD Setup (Interactive & Automatic):**
-The Ubuntu setup script now includes **integrated interactive SSD setup**:
-1. **Auto-detects** attached SSDs >500GB (SATA `/dev/sda` and NVMe `/dev/nvme0n1`)
-2. **Interactive menu** with 4 options:
-   - 🆕 **Fresh Format**: Completely erase and setup (recommended for new drives)
-   - 📁 **Use Existing**: Configure with current partitions (preserves data)
-   - ⚙️ **Advanced Setup**: Manual partition selection
-   - ⏭️ **Skip SSD**: Use eMMC-only mode (services still work)
-3. **Safe partitioning** with user confirmation and warnings
-4. **Optimized layout**: 80% data partition + 20% backup partition
-5. **Smart configuration**: All service data automatically redirects to SSD or falls back to eMMC
-
-**Manual SSD verification:**
-```bash
-# Check if SSD is detected
-lsblk
-sudo fdisk -l | grep -i "2.*tb\|1.*tb"  # Look for large drive
-
-# Verify SSD mount after setup
-mount | grep ssd
-df -h /mnt/ssd
-
-# Check SSD usage and available space
-sudo du -sh /mnt/ssd/*
-df -h | grep sda
-
-# Verify eMMC vs SSD usage
-echo "--- eMMC Usage (OS only) ---"
-df -h | grep mmcblk
-echo "--- SSD Usage (Data storage) ---"
-df -h | grep sda
-
-# Check service data locations
-ls -la /mnt/ssd/  # Should show service directories
-```
-
-**🚨 SSD Detection Troubleshooting:**
-If the Ubuntu setup script fails to detect your SSD, try these steps:
+### One-Command Installation
 
 ```bash
-# 1. Check all storage devices
-lsblk
-sudo fdisk -l
-
-# 2. Look for your SSD (common locations)
-ls -la /dev/sd*  # SATA SSDs (usually /dev/sda)
-ls -la /dev/nvme*  # NVMe SSDs
-
-# 3. Check USB-connected SSDs
-dmesg | grep -i "usb\|storage"
-lsusb
-
-# 2. Manual SSD Setup (if automated fails)
-SSD_DEVICE="/dev/sda"  # Change this to match your lsblk output
-
-# Verify it's the correct device
-echo "Setting up SSD: $SSD_DEVICE"
-lsblk $SSD_DEVICE
-
-# ⚠️ WARNING: This will ERASE ALL DATA on the SSD!
-# Create partitions for homelab storage
-parted -s $SSD_DEVICE mklabel gpt
-parted -s $SSD_DEVICE mkpart primary ext4 0% 50%
-parted -s $SSD_DEVICE mkpart primary ext4 50% 100%
-sleep 2
-
-# Format the partitions
-mkfs.ext4 -F ${SSD_DEVICE}1 -L "nextcloud-data"
-mkfs.ext4 -F ${SSD_DEVICE}2 -L "backup-storage"
-
-# Create mount points and mount
-mkdir -p /mnt/nextcloud-data /mnt/backup-storage
-mount ${SSD_DEVICE}1 /mnt/nextcloud-data
-mount ${SSD_DEVICE}2 /mnt/backup-storage
-
-# Make mounts permanent
-NEXTCLOUD_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}1)
-BACKUP_UUID=$(blkid -s UUID -o value ${SSD_DEVICE}2)
-echo "UUID=$NEXTCLOUD_UUID /mnt/nextcloud-data ext4 defaults,noatime 0 2" >> /etc/fstab
-echo "UUID=$BACKUP_UUID /mnt/backup-storage ext4 defaults,noatime 0 2" >> /etc/fstab
-
-# Set proper permissions
-chmod 755 /mnt/nextcloud-data /mnt/backup-storage
-
-# Verify setup
-echo "✅ Manual SSD setup complete!"
-df -h /mnt/nextcloud-data /mnt/backup-storage
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/install.sh | sudo bash
 ```
 
-**🎯 New! Integrated SSD Setup Experience:**
-The main installer now includes **built-in interactive SSD configuration** - no separate scripts needed!
+**Or download first** (recommended):
 
-During installation, the script will:
-- ✅ **Auto-detect** your 2TB SSD (SATA or NVMe)
-- ✅ **Show interactive menu** with safe formatting options
-- ✅ **Confirm destructive operations** with clear warnings
-- ✅ **Create optimized partitions** (80% data, 20% backup)
-- ✅ **Apply performance optimizations** (noatime, TRIM support)
-- ✅ **Graceful fallback** to eMMC-only if no SSD available
-
-**� Interactive Setup Flow:**
-```
-🔍 Detecting storage devices...
-🎯 Found 1 potential SSD: sda 1.8T Samsung_SSD_980
-  
-How would you like to configure your SSD storage?
-1) 🆕 Format and setup fresh (ERASES ALL DATA - recommended for new drives)
-2) 📁 Use existing partitions (preserves existing data)  
-3) ⚙️ Advanced setup (manual partition selection)
-4) ⏭️ Skip SSD setup (use eMMC only)
-
-Select option (1-4): _
-```
-
-**⚠️ Safety Features:**
-- Clear warnings before any destructive operations
-- Confirmation prompts ("Type 'YES' to confirm...")
-- Device verification and size checking
-- Graceful error handling and rollback options
-
-#### 5️⃣ Deploy Complete Homelab (Ubuntu)
-
-**🎯 Recommended Method (Most Reliable):**
 ```bash
-# SSH into your ZimaBoard first
-ssh username@192.168.8.2
-
-# Download the script first for better reliability
-wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh
-
-# Make it executable
-chmod +x ubuntu-homelab-simple.sh
-
-# Run the complete installation with eMMC optimization + 2TB SSD setup!
-sudo ./ubuntu-homelab-simple.sh
+wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/install.sh
+chmod +x install.sh
+sudo ./install.sh
 ```
 
-**Alternative One-Command Method:**
+**That's it!** Your homelab will be ready at `http://192.168.8.2`
+
+---
+
+## 📦 What's Included
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| **AdGuard Home** | 3000 | DNS filtering & ad-blocking |
+| **Nextcloud** | 8000 | Personal cloud + office suite |
+| **WireGuard** | 51820 | VPN server (UDP) |
+| **Squid** | 3128 | Bandwidth optimization |
+| **Netdata** | 19999 | System monitoring |
+| **Nginx** | 80 | Web dashboard & reverse proxy |
+
+---
+
+## 📖 Documentation
+
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
+- **[Service Management](docs/SERVICES.md)** - Managing your services
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Network Setup](docs/NETWORK.md)** - Cellular router configuration
+- **[Storage Optimization](docs/STORAGE.md)** - eMMC + SSD best practices
+
+---
+
+## 🎯 Why This Setup?
+
+### **Simplicity First**
+- ✅ One-command installation
+- ✅ No containers or virtualization complexity
+- ✅ Direct systemd service management
+- ✅ Easy troubleshooting and maintenance
+
+### **Optimized for ZimaBoard 2**
+- ✅ eMMC longevity optimization (90%+ write reduction)
+- ✅ SSD for all data operations
+- ✅ Cellular bandwidth savings (50-75%)
+- ✅ Low resource usage (< 4GB RAM)
+
+### **Research-Backed**
+- ✅ Based on awesome-selfhosted analysis (4,000+ services)
+- ✅ Top-rated services in each category
+- ✅ 2025 best practices and security standards
+- ✅ Active community support
+
+---
+
+## 🔧 Post-Installation
+
+After installation completes, access your services:
+
+- **Web Dashboard**: http://192.168.8.2
+- **AdGuard Home**: http://192.168.8.2:3000 (default: admin/admin123)
+- **Nextcloud**: http://192.168.8.2:8000 (default: admin/admin123)
+- **Netdata**: http://192.168.8.2:19999
+
+**⚠️ Change default passwords immediately!**
+
+---
+
+## 🗑️ Uninstall
+
+To completely remove the homelab:
+
 ```bash
-# SSH into your ZimaBoard first
-ssh username@192.168.8.2
-
-# One command installs everything (if you prefer this approach)
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
-```
-
-**💡 Why Download First?**
-- ✅ **More reliable**: Avoids piped execution issues
-- ✅ **Better debugging**: You can inspect and modify the script if needed
-- ✅ **Faster re-runs**: No need to re-download if something fails
-- ✅ **Network resilient**: Won't fail if connection drops during execution
-- ✅ **Interactive SSD setup**: Script will detect and offer to format your 2TB SSD automatically
-
-**🎉 That's it! Your Ubuntu homelab is ready!**
-
-The complete setup automatically includes:
-- ✅ **Interactive SSD Setup** (format, use existing, or eMMC-only modes)
-- ✅ **eMMC optimization** (reduced writes by 90%+, extended lifespan)
-- ✅ **2TB SSD configuration** (all data storage and heavy I/O operations)
-- ✅ **AdGuard Home DNS filtering** (modern UI with DNS-over-HTTPS built-in)
-- ✅ **Nextcloud file sharing** (feature-rich personal cloud with office suite)
-- ✅ **WireGuard VPN** (secure remote access)
-- ✅ **Squid proxy** (web caching and SSL inspection)
-- ✅ **Netdata monitoring** (real-time system metrics)
-- ✅ **Nginx web server** (reverse proxy and static content)
-- ✅ **UFW firewall** (properly configured security rules)
-- ✅ **Web dashboard** (unified access to all services)
-
-**📊 Storage Distribution:**
-- **eMMC (64GB)**: Ubuntu OS, system files, and service binaries
-- **2TB SSD**: All user data, logs, cache, backups, and databases
-- **Result**: eMMC writes minimized, SSD handles all heavy operations
-
-**🔍 Deployment Verification:**
-After running the complete setup, verify your deployment:
-```bash
-# Check all services are running
-sudo systemctl status AdGuardHome
-sudo systemctl status mariadb
-sudo systemctl status redis-server
-sudo systemctl status wg-quick@wg0
-sudo systemctl status squid
-sudo systemctl status netdata
-sudo systemctl status nginx
-
-# Verify storage configuration  
-df -h | grep sda  # Check SSD mount
-df -h | grep mmcblk  # Check eMMC usage
-
-# Verify port assignments (nginx on 80, AdGuard Home on 3000)
-ss -tlnp | grep -E ':(80|3000|8000|19999)'
-
-# Test services
-curl -I http://192.168.8.2              # Main dashboard (nginx)
-curl -I http://192.168.8.2:3000         # AdGuard Home
-curl -I http://192.168.8.2:8000         # Nextcloud
-curl -I http://192.168.8.2:19999        # Netdata
-```
-
-**📋 Post-Deployment Checklist:**
-```markdown
-- [ ] Change AdGuard Home admin password at http://192.168.8.2:3000
-- [ ] Create Nextcloud admin user at http://192.168.8.2:8000
-- [ ] Configure router DNS to point to 192.168.8.2 (network-wide ad-blocking)
-- [ ] Set up devices to use Squid proxy (192.168.8.2:3128)
-- [ ] Generate WireGuard client configs for mobile devices (QR codes saved in /etc/wireguard/)
-- [ ] Test VPN connection from external network
-- [ ] Configure automated backups schedule (already set up by script)
-- [ ] Review UFW firewall rules: `sudo ufw status`
-- [ ] Set up external access (port forwarding) if needed
-- [ ] Document your specific network configuration
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/uninstall.sh | sudo bash
 ```
 
 ---
 
-## 🌐 Services & Access
+## 🤝 Contributing
 
-Once installed, access your services at these URLs:
-
-### 🎛️ Management & Monitoring
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Web Dashboard** | `http://192.168.8.2` | Unified service dashboard |
-| **Netdata Monitoring** | `http://192.168.8.2:19999` | Real-time system monitoring |
-| **SSH Access** | `ssh username@192.168.8.2` | System administration |
-
-### 🛡️ Security Services  
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **AdGuard Home** | `http://192.168.8.2:3000` | DNS filtering & ad-blocking (default) |
-| **WireGuard VPN** | Port 51820 | Secure mobile access |
-
-**Note**: AdGuard Home is the default DNS solution. See [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md) if you prefer Pi-hole.
-
-### 📊 Storage & File Sharing
-| Service | URL | Purpose |
-|---------|-----|---------|
-| **Nextcloud Personal Cloud** | `http://192.168.8.2:8000` | Private file storage, calendar, contacts, office |
-| **Squid Proxy** | `192.168.8.2:3128` | Cellular bandwidth optimization |
-
-### 🔑 Default Credentials
-**⚠️ CHANGE THESE IMMEDIATELY AFTER INSTALLATION**
-
-- **Ubuntu SSH**: username@192.168.8.2 (user you created during Ubuntu installation)
-- **AdGuard Home**: admin / admin123 (change after first login)
-- **Nextcloud**: admin / admin123 (change after first login)
-- **WireGuard**: Key-based authentication (QR codes generated during setup)
-- **Netdata**: No authentication by default (access from local network only)
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md).
 
 ---
 
-## ⚙️ Configuration & Management
+## 📄 License
 
-### 🌐 Network Setup with GL.iNet X3000
-
-**📖 Complete Setup Guide**: [GL.iNet X3000 Configuration Guide](docs/network/gl-inet-x3000-setup.md)
-
-**Quick 3-step configuration:**
-
-1. **Connect** ZimaBoard 2 to GL.iNet X3000 via Ethernet
-2. **Configure GL.iNet X3000** (access via `192.168.8.1`):
-   - Set **Primary DNS**: `192.168.8.2` (ZimaBoard AdGuard Home)
-   - Set **DHCP Reservation**: `192.168.8.2` for ZimaBoard
-   - **Optional**: Enable port forwarding for external access
-3. **Configure ZimaBoard** static IP (Ubuntu):
-   ```bash
-   # Using netplan (Ubuntu's network configuration)
-   sudo nano /etc/netplan/00-installer-config.yaml
-   
-   # Set configuration:
-   network:
-     version: 2
-     ethernets:
-       eth0:  # or your interface name (check with 'ip link')
-         addresses: [192.168.8.2/24]
-         gateway4: 192.168.8.1
-         nameservers:
-           addresses: [127.0.0.1, 1.1.1.1]
-   
-   # Apply configuration
-   sudo netplan apply
-   ```
-
-**🎯 Benefits of This Setup:**
-- **Network-wide ad blocking** via AdGuard Home DNS
-- **40-75% bandwidth savings** with Squid proxy caching
-- **Professional QoS** prioritizing ZimaBoard traffic
-- **Secure remote access** via Wireguard VPN
-- **Real-time monitoring** of all network activity
-
-### 📱 Cellular Optimization Features
-
-**Bandwidth Savings (50-75% reduction):**
-- Gaming downloads cached (Steam, Epic, Origin)
-- Video streaming optimization (YouTube, Netflix, Twitch)
-- Software updates cached (Windows, macOS, Linux)
-- CDN content acceleration
-- Advanced streaming ad-blocking
-
-### 🛠️ Quick Management Commands
-
-**Check system health:**
-```bash
-# Check all service status
-sudo systemctl status AdGuardHome mariadb redis-server wg-quick@wg0 squid netdata nginx
-
-# Check resource usage
-htop
-df -h
-free -h
-
-# Check logs
-sudo journalctl -u AdGuardHome --since "1 hour ago"
-sudo journalctl -u mariadb --since "1 hour ago"
-```
-
-**Verify complete deployment:**
-```bash
-# Test all service endpoints
-curl -I http://192.168.8.2             # Main dashboard (nginx)
-curl -I http://192.168.8.2:3000        # AdGuard Home
-curl -I http://192.168.8.2:8000        # Nextcloud
-curl -I http://192.168.8.2:19999       # Netdata
-
-# Check service status
-sudo systemctl is-active --quiet AdGuardHome && echo "AdGuard Home: ✅" || echo "AdGuard Home: ❌"
-sudo systemctl is-active --quiet mariadb && echo "Nextcloud DB: ✅" || echo "Nextcloud DB: ❌"
-sudo systemctl is-active --quiet wg-quick@wg0 && echo "WireGuard: ✅" || echo "WireGuard: ❌"
-```
-
-**Create system backup:**
-```bash
-# Run backup script (included in installation)
-sudo /opt/homelab/scripts/backup-services.sh
-```
-
-**Individual service management:**
-```bash
-sudo systemctl status AdGuardHome    # AdGuard Home status
-sudo systemctl restart mariadb       # Restart Nextcloud DB
-sudo systemctl restart AdGuardHome   # Restart AdGuard Home
-sudo wg show                         # Check VPN status
-sudo systemctl status mariadb        # Check Nextcloud database
-sudo systemctl status squid          # Check proxy status
-sudo systemctl restart netdata       # Restart monitoring
-```
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🔧 Troubleshooting
-
-### 🚨 Common Issues & Quick Fixes
-
-#### Port Conflict Issues (If Using Pi-hole Alternative)
-**Note**: The default installation uses AdGuard Home (port 3000), which doesn't conflict with nginx (port 80).
-
-**Only applies if you chose to use Pi-hole instead** (see [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md)):
-
-**Problem**: Pi-hole FTL uses port 80, preventing nginx from starting.
-
-**Solution**:
-```bash
-# Change nginx to port 81
-sudo sed -i 's/listen 80 default_server;/listen 81 default_server;/g' /etc/nginx/sites-available/homelab
-sudo nginx -t
-sudo systemctl restart nginx
-sudo ufw allow 81/tcp
-```
-
-**Or migrate back to AdGuard Home**:
-```bash
-# Run the migration script
-wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/migrate-to-pihole.sh
-chmod +x migrate-to-pihole.sh
-sudo ./migrate-to-pihole.sh  # This migrates FROM Pi-hole TO AdGuard Home
-```
-
-#### Can't Access Web Services
-```bash
-# Check and restart Nginx (main web server)
-sudo systemctl status nginx
-sudo systemctl restart nginx
-
-# Check which ports are in use
-ss -tlnp | grep -E ':(80|81|8000|8080)'
-```
-
-#### DNS Not Working
-```bash
-# Test DNS resolution (should use AdGuard Home)
-nslookup google.com 192.168.8.2
-
-# Restart DNS services
-sudo systemctl restart AdGuardHome
-
-# Check AdGuard Home logs
-sudo journalctl -u AdGuardHome --since "1 hour ago"
-```
-
-#### Service Won't Start
-```bash
-# Check service status and logs (example: AdGuard Home)
-sudo systemctl status AdGuardHome
-sudo journalctl -u AdGuardHome --since "1 hour ago"
-
-# Try manual restart
-sudo systemctl restart AdGuardHome
-
-# Check all critical services
-sudo systemctl status AdGuardHome mariadb nginx netdata
-```
-
-#### High Memory Usage
-```bash
-# Check memory usage
-free -h
-htop
-
-# Check which services are using memory
-ps aux --sort=-%mem | head
-
-# Restart memory-heavy services if needed
-sudo systemctl restart seafile
-```
-
-#### VPN Connection Issues
-```bash
-# Check WireGuard status
-sudo wg show
-sudo systemctl status wg-quick@wg0
-
-# Restart VPN service
-sudo systemctl restart wg-quick@wg0
-
-# Check VPN logs
-sudo journalctl -u wg-quick@wg0 --since "1 hour ago"
-
-# View client configs (QR codes available in /etc/wireguard/)
-sudo cat /etc/wireguard/client1.conf
-```
-
-#### eMMC Optimization Verification
-```bash
-# Check if eMMC optimizations are active
-cat /proc/sys/vm/swappiness  # Should be 10 or lower
-mount | grep noatime         # Should show noatime on eMMC
-
-# Check eMMC health
-sudo tune2fs -l /dev/mmcblk0p2 | grep -i "mount count"
-
-# Check SSD redirection for logs
-df -h | grep sda            # Logs should be on SSD
-ls -la /var/log/            # Should be symlinked to SSD
-
-# Check memory compression (zswap)
-cat /sys/module/zswap/parameters/enabled
-```
-
-#### SSD Storage Issues
-```bash
-# Check if 2TB SSD is properly detected
-lsblk | grep -E "(sda|nvme)"
-fdisk -l | grep -E "(sda|nvme)"
-
-# Verify SSD is mounted and accessible
-df -h | grep -E "(sda|nvme)"
-mount | grep /mnt/ssd
-
-# Check SSD usage
-sudo du -sh /mnt/ssd/*
-
-# Test SSD write performance
-cd /mnt/ssd && sudo dd if=/dev/zero of=test.tmp bs=1M count=100 && sudo rm test.tmp
-
-# Check service data locations on SSD
-ls -la /mnt/ssd/
-ls -la /mnt/ssd/adguardhome      # AdGuard Home data
-ls -la /var/www/nextcloud/data   # Should be on SSD
-```
-
-#### Service-Specific Troubleshooting
-
-**AdGuard Home Issues:**
-```bash
-# Restart AdGuard Home
-sudo systemctl restart AdGuardHome
-
-# Check AdGuard Home status
-sudo systemctl status AdGuardHome
-
-# View AdGuard Home logs
-sudo journalctl -u AdGuardHome --since "1 hour ago"
-
-# Check AdGuard Home configuration
-sudo cat /opt/AdGuardHome/AdGuardHome.yaml
-
-# Reconfigure AdGuard Home (reinstall config)
-sudo /opt/AdGuardHome/AdGuardHome -s stop
-sudo /opt/AdGuardHome/AdGuardHome -s uninstall
-sudo /opt/AdGuardHome/AdGuardHome -s install
-sudo systemctl start AdGuardHome
-```
-
-**Note**: If you're using Pi-hole instead (alternative setup), see the [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md) for Pi-hole-specific troubleshooting.
-
-**Nextcloud Connection Problems:**
-```bash
-# Check Nextcloud database status
-sudo systemctl status mariadb
-
-# Check PHP-FPM status
-sudo systemctl status php*-fpm
-
-# Test Nextcloud directly
-cd /var/www/nextcloud
-sudo -u www-data php occ status
-
-# Check Nextcloud configuration
-sudo -u www-data php occ config:list system
-
-# Update Nextcloud trusted domains if needed
-sudo -u www-data php occ config:system:set trusted_domains 1 --value="192.168.8.2"
-
-# Restart all Nextcloud services
-sudo systemctl restart mariadb
-sudo systemctl restart php*-fpm
-sudo systemctl restart redis-server
-sudo systemctl restart nginx
-
-# Check Nextcloud logs
-sudo tail -f /var/www/nextcloud/data/nextcloud.log
-```
-
-**WireGuard Configuration:**
-```bash
-# View existing client configs (QR codes available)
-sudo ls /etc/wireguard/client*.conf
-sudo cat /etc/wireguard/client1.conf
-
-# Generate additional client config
-sudo wg genkey | sudo tee /etc/wireguard/client2.key
-sudo wg pubkey < /etc/wireguard/client2.key | sudo tee /etc/wireguard/client2.pub
-
-# Check WireGuard interface status
-sudo ip addr show wg0
-```
-
-#### Setup Script Shows "SSD device /dev/sdb not found"
-**Problem**: The setup script expects `/dev/sdb` but your 2TB SSD appears as `/dev/sda`.
-
-**Interactive Setup (Recommended Solution):**
-```bash
-# Run the interactive setup script
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/setup-ssd-storage.sh | bash
-
-# Choose option 2 "Use Existing Partitions" or option 3 "Advanced Mode"
-# This will preserve your data and configure existing partitions
-```
-
-**Manual SSD Configuration (Alternative):**
-```bash
-# Step 1: Identify your SSD device
-lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT
-
-# Step 2: Check partition information
-fdisk -l /dev/sda
-file -s /dev/sda*
-
-# Step 3: Manual SSD setup (choose an available partition)
-# WARNING: This will format the partition - ensure no important data!
-
-# Create mount point
-mkdir -p /mnt/ssd-storage
-
-# Format partition (use sda3 or sda4 - check which is empty first!)
-# CAUTION: Replace sda3 with the correct empty partition
-mkfs.ext4 /dev/sda3
-
-# Mount the SSD
-mount /dev/sda3 /mnt/ssd-storage
-
-# Add to fstab for persistent mounting
-echo "/dev/sda3 /mnt/ssd-storage ext4 defaults,noatime 0 2" >> /etc/fstab
-
-# Configure service directories
-mkdir -p /mnt/ssd-storage/{nextcloud,logs,cache,backups}
-chown -R www-data:www-data /mnt/ssd-storage/nextcloud
-
-# Verify setup
-df -h /mnt/ssd-storage
-ls -la /mnt/ssd-storage/
-```
-
-**Quick Fix Script (Alternative):**
-```bash
-# Download and run the fixed setup script
-curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/install/ssd-setup-fix.sh | bash
-```
-
-**Device Naming Reference:**
-- **eMMC**: `/dev/mmcblk0` (Ubuntu OS)
-- **First SSD**: `/dev/sda` (your 2TB drive) ← **Most common**
-- **Second drive**: `/dev/sdb` (if you add another drive)
-- **NVMe drives**: `/dev/nvme0n1`, `/dev/nvme1n1`, etc.
-
-#### Moving Service Data from eMMC to SSD (if needed)
-```bash
-# If service data was created on eMMC, move it:
-# 1. Stop the service
-sudo systemctl stop mariadb
-
-# 2. Move data directory
-sudo mv /var/lib/mysql /mnt/ssd/mysql
-sudo ln -s /mnt/ssd/mysql /var/lib/mysql
-
-# 3. Start service
-sudo systemctl start mariadb
-
-# Verify new location
-ls -la /var/lib/mysql  # Should show symlink to SSD
-df -h /mnt/ssd/mysql
-```
-```bash
-# Check if eMMC device is detected
-lsblk | grep mmcblk
-ls -la /dev/mmcblk*
-
-# Verify eMMC performance mode
-cat /sys/block/mmcblk0/queue/scheduler 2>/dev/null || echo "Scheduler info not available"
-
-# Check eMMC write protection (if installation fails)
-cat /sys/block/mmcblk0/force_ro 2>/dev/null || echo "0"
-
-# Monitor eMMC health and errors
-dmesg | grep -i mmc
-journalctl | grep -i "mmc\|emmc" | tail -10
-
-# Check available eMMC space
-df -h | grep mmcblk
-```
-
-#### Installation Error: "Unable to get device for partition 1"
-If the Ubuntu installer shows this error for eMMC devices:
-```bash
-# Ubuntu Server has excellent eMMC support out-of-the-box
-# No special installation procedures needed
-# If you encounter issues:
-
-# 1. Verify eMMC is detected during Ubuntu installation
-# 2. Choose "Use entire disk" for automatic partitioning
-# 3. If needed, use manual partitioning with ext4 filesystem
-```
-
-#### Setup Script Fails During eMMC Optimization
-If the Ubuntu setup script encounters eMMC-related errors:
-```bash
-# Check eMMC device detection
-lsblk | grep mmcblk
-
-# Verify filesystem is properly mounted
-df -h | grep mmcblk
-
-# Manually run eMMC optimizations
-sudo echo 10 > /proc/sys/vm/swappiness
-sudo systemctl enable zswap
-
-# Check optimization status
-cat /proc/sys/vm/swappiness  # Should show 10
-cat /sys/module/zswap/parameters/enabled  # Should show Y
-```
-
-#### Package Update Issues
-If you encounter package installation errors during setup:
-```bash
-# Update package cache and upgrade system
-sudo apt update && sudo apt upgrade -y
-
-# If you see "package not found" errors:
-sudo apt update --fix-missing
-
-# For dependency issues:
-sudo apt install -f
-
-# Verify Ubuntu repositories
-cat /etc/apt/sources.list
-sudo apt-key list
-```
-
-> **📚 Research Credits**: eMMC longevity analysis based on comprehensive awesome-selfhosted research and real-world testing. 64GB eMMC can handle ~20TB total writes (~10-40 years with proper optimization). Ubuntu Server's built-in eMMC optimizations and our SSD data redirection extend lifespan significantly. Service recommendations based on 2025 awesome-selfhosted database analysis.
-
-### 📞 Get Help
-
-- **[Ubuntu Community](https://ubuntu.com/support/community-support)**
-- **[ZimaBoard Community](https://community.zimaspace.com/)**
-- **[Pi-hole Support](https://discourse.pi-hole.net/)**
-- **[Seafile Support](https://help.seafile.com/)**
-- **[GitHub Issues](https://github.com/th3cavalry/zimaboard-2-home-lab/issues)**
+## 🙏 Acknowledgments
+
+- **ZimaBoard Community** - Hardware support and testing
+- **awesome-selfhosted** - Service research and recommendations
+- **Ubuntu Server** - Rock-solid foundation
+- **Open Source Community** - Amazing software that makes this possible
 
 ---
 
-## 📚 Advanced Topics
+## 📞 Support
 
-<details>
-<summary><strong>🔀 Alternative Programs (2025 Recommendations)</strong></summary>
-
-Based on extensive research of the awesome-selfhosted database and 2025 trends, here are the best alternatives and upgrade recommendations:
-
-### DNS & Ad Blocking Alternatives
-| Program | GitHub Stars | Status | Best For | Port |
-|---------|-------------|--------|----------|------|
-| **AdGuard Home** ✅ | 30.5k | **Current choice** | Modern UI, DNS-over-HTTPS, no port conflicts | 3000 (web), 53 (DNS) |
-| **Pi-hole** | 48.2k | Alternative | Stability & huge community | 80 (FTL), 8080 (admin) |
-| **Blocky** 🚀 | 5.6k | Emerging | Ultra-fast, container-friendly | Configurable |
-| **Technitium DNS** | 4.1k | Professional | Authoritative + recursive DNS | Configurable |
-
-**Recommendation**: **AdGuard Home is now the default** - modern features, DNS-over-HTTPS, and nginx can use port 80!
-
-### File Sync & Personal Cloud Alternatives  
-| Program | GitHub Stars | Status | Best For |
-|---------|-------------|--------|----------|
-| **Nextcloud** ✅ | 27.0k | **Current choice** | Feature-rich ecosystem (400+ apps, office suite) |
-| **Seafile** | 12.0k | Previous | Performance on limited hardware |
-| **ownCloud** | 8.4k | Stable | Simpler administration |
-| **Pydio Cells** | 1.7k | Enterprise | High-performance alternative |
-
-**Recommendation**: **Nextcloud is now installed** - excellent choice with document editing, calendar/contacts integration, and 400+ apps!
-
-### System Monitoring Alternatives
-| Program | GitHub Stars | Status | Best For |
-|---------|-------------|--------|----------|
-| **Netdata** ✅ | 71.1k | **Perfect choice** | Zero-config, beautiful UI |
-| **Grafana + Prometheus** | 70.4k + 55.0k | Enterprise | Professional dashboards |
-| **Uptime Kuma** 🔥 | 57.0k | Trending | Beautiful uptime monitoring |
-| **Zabbix** | 4.1k | Enterprise | Large-scale monitoring |
-
-**Recommendation**: Keep Netdata (excellent), add Uptime Kuma for service monitoring.
-
-### Modern Services to Consider Adding (2025 Trending)
-
-#### Password Management
-| Service | Stars | Purpose |
-|---------|-------|---------|
-| **Vaultwarden** | 37.4k | Bitwarden server (password manager) |
-| **Passbolt** | 4.5k | Team password management |
-
-#### Photo Management  
-| Service | Stars | Purpose |
-|---------|-------|---------|
-| **Immich** 🔥 | 47.0k | Google Photos alternative |
-| **PhotoPrism** | 34.7k | AI-powered photo management |
-
-#### Media Servers
-| Service | Stars | Purpose |
-|---------|-------|---------|
-| **Jellyfin** | 33.8k | Plex alternative (open source) |
-| **Plex** | - | Media server (freemium) |
-
-#### Authentication & Identity
-| Service | Stars | Purpose |
-|---------|-------|---------|
-| **Authentik** 🔥 | 13.2k | Modern identity provider |
-| **Authelia** | 21.4k | Lightweight auth gateway |
-
-#### All-in-One Homelab Solutions
-| Service | Stars | Purpose |
-|---------|-------|---------|
-| **CasaOS** 🔥 | 25.1k | Beautiful Docker management UI |
-| **Tipi** | 7.1k | One-click app installer |
-| **HomelabOS** | 6.3k | 100+ services automation |
-
-### 2025 Upgrade Path Recommendations
-
-**Phase 1 (Immediate - High Impact):**
-1. **✅ Nextcloud installed** (major functionality upgrade complete!)
-2. **Add Immich** for photo management 
-3. **Add Vaultwarden** for password management
-
-**Phase 2 (Medium-term - Enhanced Security):**
-1. **Add Authentik** for centralized authentication
-2. **Add Uptime Kuma** for service monitoring
-3. **Consider CasaOS** for easier management
-
-**Phase 3 (Advanced - Media & Automation):**
-1. **Add Jellyfin** for media serving
-2. **Consider automation tools** like n8n or Automatisch
-3. **Add backup solutions** like Duplicati or Kopia
-
-### Service Compatibility Matrix
-
-| Current Service | Keep/Upgrade | 2025 Alternative | Effort | Benefit |
-|----------------|--------------|------------------|--------|---------|
-| AdGuard Home | ✅ Keep | - | - | Modern & optimal |
-| Nextcloud | ✅ **UPGRADED** | - | - | **Major features added** |
-| Netdata | ✅ Keep | + Uptime Kuma | Low | Better monitoring |
-| WireGuard | ✅ Keep | - | - | Gold standard |
-| Nginx | ✅ Keep | Caddy | Medium | Auto HTTPS |
-| Squid | ✅ Keep | - | - | Still optimal |
-
-**🎯 Priority Recommendations for Your Setup:**
-1. **✅ Excellent current choices**: AdGuard Home, Netdata, WireGuard, Nginx, **Nextcloud**
-2. **✅ Major upgrade complete**: Nextcloud now provides office suite, calendar, contacts
-3. **Easy additions**: Immich (photos), Vaultwarden (passwords)
-4. **Future consideration**: CasaOS for easier management
-
-</details>
-
-<details>
-<summary><strong>⚙️ Resource Specifications</strong></summary>
-
-### Optimized Resource Allocation (16GB RAM + 2TB SSD)
-```
-Ubuntu OS:          2-3GB RAM, 60GB eMMC (OS + services)
-AdGuard Home/DNS:   ~150MB RAM (DNS filtering + DNS-over-HTTPS)  
-Nextcloud Cloud:    ~1.5GB RAM (Personal cloud + office suite)
-MariaDB:            ~300MB RAM (Nextcloud database)
-Redis Cache:        ~100MB RAM (Nextcloud caching)
-WireGuard VPN:      ~50MB RAM (VPN server)
-Squid Proxy:        ~200MB RAM (Bandwidth optimization)
-Netdata Monitor:    ~100MB RAM (System monitoring)
-Nginx Proxy:        ~100MB RAM (Web server & reverse proxy)
-Available:          11+ GB RAM, 1.9TB+ SSD storage
-eMMC Usage:         60GB used, 4GB safety margin
-
-Storage Distribution:
-- /mnt/ssd/adguardhome: AdGuard Home data and DNS query logs
-- /mnt/ssd/nextcloud: User files, calendar, contacts, documents
-- /mnt/ssd/mysql: Nextcloud database and metadata
-- /mnt/ssd/logs: All system and service logs  
-- /mnt/ssd/cache: Squid proxy cache + Redis cache
-- /mnt/ssd/backups: Automated backup storage
-- eMMC writes reduced by 90%+ (data redirected to SSD)
-```
-
-### Hardware Requirements
-- **Required**: ZimaBoard 2, 16GB RAM, 64GB eMMC storage (standard)
-- **Required**: 2TB+ SSD for all data storage and heavy I/O operations
-- **Network**: Ethernet connection to router/cellular gateway
-- **Optimal Setup**: eMMC for OS only, SSD for all data operations
-
-### Documentation
-- **[eMMC Optimization Guide](docs/EMMC_OPTIMIZATION.md)**: Maximize embedded storage lifespan
-- **[Cellular Optimization Guide](docs/CELLULAR_OPTIMIZATION.md)**: Bandwidth-saving strategies
-- **[Network Setup Guide](docs/NETWORK_SETUP.md)**: Advanced networking configuration
-- **[GL.iNet X3000 Setup](docs/network/gl-inet-x3000-setup.md)**: Complete X3000 cellular router configuration
-- **[Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md)**: How to use Pi-hole instead of AdGuard Home
-
-### What's New with Ubuntu Server 24.04 LTS Approach
-- **🚀 Ubuntu Server 24.04 LTS** base system (5-year support lifecycle)
-- **🔒 Enhanced Security** with built-in UFW firewall and automatic security updates
-- **⚡ Optimized Performance** on embedded systems like ZimaBoard
-- **🛠️ Simplified Management** with systemd service management
-- **📱 Native eMMC Support** and automatic optimization
-- **🔧 No Virtualization Overhead** - direct installation approach
-- **🎯 Beginner Friendly** - no container or hypervisor knowledge required
-
-**Note**: Ubuntu Server 24.04 LTS provides excellent eMMC compatibility out-of-the-box and includes built-in optimizations for embedded systems.
-
-</details>
-
-<details>
-<summary><strong>🔒 Security Hardening</strong></summary>
-
-### Essential Security Steps
-1. **Change all default passwords** immediately after installation
-2. **Configure UFW firewall** (automatically enabled by setup script)
-3. **Set up SSL certificates** for web interfaces (optional)
-4. **Configure automatic backups** (included in setup script)
-5. **Enable automatic security updates** for Ubuntu
-6. **Update services regularly** with system package manager
-
-### UFW Firewall Configuration
-```bash
-# Check firewall status (should be enabled after setup)
-sudo ufw status
-
-# Basic rules (automatically configured by setup script)
-sudo ufw allow 22/tcp     # SSH
-sudo ufw allow 53/tcp     # AdGuard Home DNS
-sudo ufw allow 53/udp     # AdGuard Home DNS  
-sudo ufw allow 80/tcp     # Nginx web UI (no more conflicts!)
-sudo ufw allow 3000/tcp   # AdGuard Home web UI
-sudo ufw allow 8000/tcp   # Nextcloud
-sudo ufw allow 51820/udp  # WireGuard VPN
-sudo ufw allow 19999/tcp  # Netdata (local network only)
-sudo ufw deny 3128/tcp    # Squid proxy (internal only)
-```
-sudo ufw allow 51820/udp  # WireGuard VPN
-sudo ufw allow 19999/tcp  # Netdata (local network only)
-sudo ufw deny 3128/tcp    # Squid proxy (internal only)
-```
-
-</details>
-
-<details>
-<summary><strong>🚀 Performance Optimization</strong></summary>
-
-### SSD Optimization
-```bash
-# Set optimal scheduler for SSDs (adjust device name as needed)
-echo 'mq-deadline' > /sys/block/sda/queue/scheduler  # Usually sda for 2TB SSD
-
-# Optimize mount options
-echo 'noatime,nodiratime' >> /etc/fstab
-```
-
-### Memory Optimization
-```bash
-# Reduce swap usage
-echo 'vm.swappiness=10' >> /etc/sysctl.conf
-echo 'vm.vfs_cache_pressure=50' >> /etc/sysctl.conf
-```
-
-### Service Optimization
-```bash
-# Optimize service memory usage
-sudo systemctl edit seafile
-# Add:
-[Service]
-MemoryLimit=1G
-
-# Optimize disk I/O for services
-sudo ionice -c1 -n4 systemctl restart squid
-```
-
-</details>
-
----
-
-## 🎯 Why This Setup Works in 2025
-
-### ✅ Research-Backed Excellence (2025 Analysis)
-- **Awesome-selfhosted database research**: 4,000+ services analyzed
-- **Community validated**: Programs with highest GitHub stars and adoption
-- **Modern best practices**: Based on latest homelab trends and security standards
-- **Future-proof choices**: Services with active development and long-term support
-
-### ✅ Cellular Internet Optimized  
-- **50-75% bandwidth savings** with intelligent caching
-- **Streaming ad-blocking** for Netflix, Hulu, YouTube
-- **Gaming optimization** for Steam, Epic Games downloads
-- **Mobile-friendly VPN** with Wireguard
-
-### ✅ Enterprise Features on Small Hardware
-- **Production-ready services** running directly on Ubuntu Server
-- **Automatic backups** and data protection
-- **Real-time monitoring** with zero configuration
-- **Scalable architecture** for future expansion
-
-### ✅ 2025 Optimization Philosophy
-- **Simplicity over complexity**: Direct installation beats containerization for small setups
-- **Reliability over features**: Proven stable services instead of bleeding edge
-- **Performance over convenience**: eMMC+SSD optimization for maximum hardware utilization
-- **Security by default**: UFW firewall, automatic updates, and secure configurations
-
-## 🚀 2025 Homelab Trends This Setup Embraces
-
-### **Trend #1: Back to Basics**
-Complex container orchestration (Docker Swarm, Kubernetes) is giving way to **simple, reliable direct installations**. Ubuntu Server 24.04 LTS with systemd service management is more maintainable than multi-layer containerization.
-
-### **Trend #2: Hardware Optimization**  
-Instead of throwing more hardware at problems, **optimizing existing hardware** (like our eMMC+SSD strategy) provides better performance and longevity.
-
-### **Trend #3: Integrated Ecosystems**
-Moving from single-purpose tools to **integrated service ecosystems**. Nextcloud's 400+ apps vs. individual services for each function.
-
-### **Trend #4: Security First**
-**Built-in security** (UFW, fail2ban, automatic updates) instead of afterthought security additions.
-
-### **Trend #5: Mobile-Centric**
-Everything must work excellently on mobile devices - our WireGuard VPN and responsive web interfaces reflect this priority.
-
----
-
-## 📄 License & Disclaimer
-
-This project is licensed under the **MIT License**.
-
-**⚠️ Disclaimer**: This project is for educational and personal use. Always follow security best practices and comply with local laws when implementing network security solutions.
-
-**Ubuntu Server 24.04 LTS** is a production-ready platform - this configuration provides enterprise-grade services with 5-year support on your ZimaBoard 2.
-
----
-
-## 📚 Additional Documentation
-
-For comprehensive information about this deployment:
-
-- **[DEPLOYMENT_STATUS.md](DEPLOYMENT_STATUS.md)** - Real-time system status and detailed service information
-- **[CHANGELOG.md](CHANGELOG.md)** - Complete deployment history and technical achievements  
-- **[scripts/install/verify-deployment.sh](scripts/install/verify-deployment.sh)** - Comprehensive system verification script
-- **[docs/](docs/)** - Detailed research, comparisons, and technical documentation
+- **Issues**: [GitHub Issues](https://github.com/th3cavalry/zimaboard-2-home-lab/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/th3cavalry/zimaboard-2-home-lab/discussions)
+- **ZimaBoard**: [ZimaSpace Community](https://community.zimaspace.com/)
 
 ---
 
 <div align="center">
 
-**🏆 This represents the optimal ZimaBoard 2 + cellular internet configuration for 2025!**
+**Built with ❤️ for the homelab community**
 
-[![GitHub Stars](https://img.shields.io/github/stars/th3cavalry/zimaboard-2-home-lab?style=social)](https://github.com/th3cavalry/zimaboard-2-home-lab)
-[![GitHub Forks](https://img.shields.io/github/forks/th3cavalry/zimaboard-2-home-lab?style=social)](https://github.com/th3cavalry/zimaboard-2-home-lab)
-
-**Happy Homelabbing! 🏠🔒🚀**
+[![Star on GitHub](https://img.shields.io/github/stars/th3cavalry/zimaboard-2-home-lab?style=social)](https://github.com/th3cavalry/zimaboard-2-home-lab)
 
 </div>
