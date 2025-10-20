@@ -145,8 +145,8 @@ apt install -y nginx
 # Use default PHP version for Ubuntu 24.04 LTS (PHP will be installed later)
 PHP_VERSION="8.3"
 
-# Create Nginx configuration file
-tee /etc/nginx/sites-available/homelab > /dev/null << NGINX_EOF
+# Create Nginx configuration file using a more reliable method
+cat > /etc/nginx/sites-available/homelab << 'EOF'
 server {
     listen 80 default_server;
     server_name _;
@@ -270,7 +270,10 @@ server {
         try_files $uri $uri/ /index.php$request_uri;
     }
 }
-NGINX_EOF
+EOF
+
+# Substitute the PHP version in the configuration
+sed -i "s/\${PHP_VERSION}/${PHP_VERSION}/g" /etc/nginx/sites-available/homelab
 
 ln -sf /etc/nginx/sites-available/homelab /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
