@@ -25,9 +25,40 @@
    ```bash
    curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
    ```
-3. **Access your services** at: `http://192.168.8.2` 🎉
+3. **Access your services** at: `http://192.168.8.2:81` 🎉
 
 **That's it!** Your complete security homelab is ready - **no containers, no complexity, just works!**
+
+---
+
+### 🧹 Uninstall (Complete Removal)
+
+**Want to completely remove the homelab and start fresh?**
+
+**Recommended method (download first):**
+```bash
+# Download the uninstall script
+wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/uninstall-homelab.sh
+chmod +x uninstall-homelab.sh
+sudo ./uninstall-homelab.sh
+```
+
+**OR use the one-command approach:**
+```bash
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/uninstall-homelab.sh | sudo bash
+```
+
+**What the uninstall script removes:**
+- ✅ All homelab services (Pi-hole, Nextcloud, Wireguard, Squid, Netdata, Nginx)
+- ✅ All configuration files and databases
+- ✅ All data directories (eMMC and SSD)
+- ✅ Firewall rules
+- ✅ System optimizations (restores defaults)
+- ✅ Service users and cron jobs
+
+**⚠️ Note:** A reboot is recommended after uninstall to fully clear all services and mounts.
+
+---
 
 ## 🎯 Deployment Status
 
@@ -51,10 +82,10 @@ Nextcloud   ✅        :8000     Personal cloud + office suite  Excellent ⭐⭐
 Wireguard   ✅        :51820    VPN server (UDP)               Gold Standard ⭐⭐⭐⭐⭐
 Squid       ✅        :3128     Bandwidth optimization         Excellent ⭐⭐⭐⭐⭐
 Netdata     ✅        :19999    System monitoring              Perfect ⭐⭐⭐⭐⭐
-Nginx       ✅        :80       Web services & reverse proxy   Excellent ⭐⭐⭐⭐⭐
+Nginx       ✅        :81       Web services & reverse proxy   Excellent ⭐⭐⭐⭐⭐
 ```
 
-**🎯 Access everything at:** `http://192.168.8.2` with different ports for each service
+**🎯 Access everything at:** `http://192.168.8.2:81` (nginx) with different ports for each service
 
 **📊 2025 Research Summary:**
 - ✅ **OS Choice Validated**: Ubuntu Server 24.04 LTS is optimal for embedded systems
@@ -492,7 +523,7 @@ Once installed, access your services at these URLs:
 ### 🎛️ Management & Monitoring
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Web Dashboard** | `http://192.168.8.2` | Unified service dashboard |
+| **Web Dashboard** | `http://192.168.8.2:81` | Unified service dashboard |
 | **Netdata Monitoring** | `http://192.168.8.2:19999` | Real-time system monitoring |
 | **SSH Access** | `ssh username@192.168.8.2` | System administration |
 
@@ -587,7 +618,7 @@ sudo journalctl -u mariadb --since "1 hour ago"
 **Verify complete deployment:**
 ```bash
 # Test all service endpoints
-curl -I http://192.168.8.2              # Main dashboard
+curl -I http://192.168.8.2:81           # Main dashboard (nginx)
 curl -I http://192.168.8.2:8080/admin   # Pi-hole
 curl -I http://192.168.8.2:8000         # Nextcloud
 curl -I http://192.168.8.2:19999        # Netdata
@@ -1101,8 +1132,9 @@ sudo ufw status
 sudo ufw allow 22/tcp     # SSH
 sudo ufw allow 53/tcp     # Pi-hole DNS
 sudo ufw allow 53/udp     # Pi-hole DNS  
+sudo ufw allow 81/tcp     # Nginx web UI (changed from 80)
 sudo ufw allow 8080/tcp   # Pi-hole web UI
-sudo ufw allow 8000/tcp   # Seafile
+sudo ufw allow 8000/tcp   # Nextcloud
 sudo ufw allow 51820/udp  # WireGuard VPN
 sudo ufw allow 19999/tcp  # Netdata (local network only)
 sudo ufw deny 3128/tcp    # Squid proxy (internal only)

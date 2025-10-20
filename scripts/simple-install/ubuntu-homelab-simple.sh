@@ -324,7 +324,7 @@ ufw --force enable
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow ssh
-ufw allow 80/tcp    # Web services
+ufw allow 81/tcp    # Web services (changed from 80)
 ufw allow 443/tcp   # HTTPS
 ufw allow 53/tcp    # DNS
 ufw allow 53/udp    # DNS
@@ -412,7 +412,7 @@ PHP_VERSION="8.3"
 # Create Nginx configuration file using cat for maximum reliability
 cat > /etc/nginx/sites-available/homelab << 'NGINXEOF'
 server {
-    listen 80 default_server;
+    listen 81 default_server;
     server_name _;
     
     location / {
@@ -862,7 +862,7 @@ echo "📋 Services installed and configured:"
 echo "   🕳️  Pi-hole DNS:      http://192.168.8.2/admin (admin/admin123)"
 echo "   ☁️  Nextcloud Cloud:  http://192.168.8.2:8000 (admin/admin123)" 
 echo "   📊 Netdata Monitor:   http://192.168.8.2/netdata"
-echo "   🌐 Web Dashboard:     http://192.168.8.2"
+echo "   🌐 Web Dashboard:     http://192.168.8.2:81"
 echo "   🔄 Squid Proxy:      192.168.8.2:3128"
 echo "   🔐 Wireguard VPN:    /etc/wireguard/client.conf"
 echo ""
