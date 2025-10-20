@@ -25,9 +25,19 @@
    ```bash
    curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
    ```
-3. **Access your services** at: `http://192.168.8.2:81` 🎉
+3. **Access your services** at: `http://192.168.8.2` 🎉
 
 **That's it!** Your complete security homelab is ready - **no containers, no complexity, just works!**
+
+**🔥 Now with AdGuard Home by default** - Modern UI, DNS-over-HTTPS, and NO port conflicts!
+
+---
+
+### 🔄 Want Pi-hole Instead?
+
+**Prefer Pi-hole over AdGuard Home?** You can install the Pi-hole version or migrate to Pi-hole.
+
+See the [Pi-hole Installation Guide](docs/PIHOLE_ALTERNATIVE.md) for instructions.
 
 ---
 
@@ -49,7 +59,7 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 ```
 
 **What the uninstall script removes:**
-- ✅ All homelab services (Pi-hole, Nextcloud, Wireguard, Squid, Netdata, Nginx)
+- ✅ All homelab services (AdGuard Home, Nextcloud, Wireguard, Squid, Netdata, Nginx)
 - ✅ All configuration files and databases
 - ✅ All data directories (eMMC and SSD)
 - ✅ Firewall rules
@@ -76,16 +86,19 @@ This configuration represents the optimal 2025 homelab setup based on comprehens
 
 **Current Service Status:**
 ```
-Service     Status    Port      Purpose                    2025 Rating
-Pi-hole     ✅        :8080     DNS filtering & ad-blocking    Excellent ⭐⭐⭐⭐⭐
-Nextcloud   ✅        :8000     Personal cloud + office suite  Excellent ⭐⭐⭐⭐⭐ (UPGRADED!)  
-Wireguard   ✅        :51820    VPN server (UDP)               Gold Standard ⭐⭐⭐⭐⭐
-Squid       ✅        :3128     Bandwidth optimization         Excellent ⭐⭐⭐⭐⭐
-Netdata     ✅        :19999    System monitoring              Perfect ⭐⭐⭐⭐⭐
-Nginx       ✅        :81       Web services & reverse proxy   Excellent ⭐⭐⭐⭐⭐
+Service      Status    Port      Purpose                       2025 Rating
+AdGuard Home ✅        :3000     DNS + modern UI (default)     Excellent ⭐⭐⭐⭐⭐
+Pi-hole      �        :8080     DNS filtering (optional)      Excellent ⭐⭐⭐⭐⭐
+Nextcloud    ✅        :8000     Personal cloud + office suite Excellent ⭐⭐⭐⭐⭐ (UPGRADED!)  
+Wireguard    ✅        :51820    VPN server (UDP)              Gold Standard ⭐⭐⭐⭐⭐
+Squid        ✅        :3128     Bandwidth optimization        Excellent ⭐⭐⭐⭐⭐
+Netdata      ✅        :19999    System monitoring             Perfect ⭐⭐⭐⭐⭐
+Nginx        ✅        :80       Web services & reverse proxy  Excellent ⭐⭐⭐⭐⭐
 ```
 
-**🎯 Access everything at:** `http://192.168.8.2:81` (nginx) with different ports for each service
+**🔥 AdGuard Home is now the default** - No port conflicts, modern UI, DNS-over-HTTPS built-in!
+
+**🎯 Access everything at:** `http://192.168.8.2` (nginx on port 80 - no conflicts!)
 
 **📊 2025 Research Summary:**
 - ✅ **OS Choice Validated**: Ubuntu Server 24.04 LTS is optimal for embedded systems
@@ -100,7 +113,7 @@ Nginx       ✅        :81       Web services & reverse proxy   Excellent ⭐⭐
 This homelab provides enterprise-grade security for your home network, optimized for ZimaBoard 2 + cellular internet:
 
 ### 🛡️ Security Features
-- **🔒 DNS Ad-Blocking**: Pi-hole + Unbound (blocks 95% of ads & malware)
+- **🔒 DNS Ad-Blocking**: AdGuard Home with DNS-over-HTTPS (blocks 95% of ads & malware)
 - **🚨 Intrusion Prevention**: Fail2ban (stops brute force attacks)
 - **🔐 Secure VPN**: Wireguard (mobile access from anywhere)
 - **🦠 Virus Protection**: ClamAV (real-time scanning)
@@ -155,7 +168,7 @@ This homelab provides enterprise-grade security for your home network, optimized
 
 **💾 SSD Requirements (Optional but Recommended):**
 - **2TB+ SSD** for user data, logs, cache, and backups
-- SSD will host: Pi-hole database, Nextcloud files, Squid cache, system logs
+- SSD will host: AdGuard Home database, Nextcloud files, Squid cache, system logs
 - NVMe SSD preferred for best performance, but SATA works fine
 - **Note**: Services work without SSD, but SSD greatly improves performance and eMMC lifespan
 
@@ -463,7 +476,7 @@ The complete setup automatically includes:
 - ✅ **Interactive SSD Setup** (format, use existing, or eMMC-only modes)
 - ✅ **eMMC optimization** (reduced writes by 90%+, extended lifespan)
 - ✅ **2TB SSD configuration** (all data storage and heavy I/O operations)
-- ✅ **Pi-hole DNS filtering** (network-wide ad blocking)
+- ✅ **AdGuard Home DNS filtering** (modern UI with DNS-over-HTTPS built-in)
 - ✅ **Nextcloud file sharing** (feature-rich personal cloud with office suite)
 - ✅ **WireGuard VPN** (secure remote access)
 - ✅ **Squid proxy** (web caching and SSL inspection)
@@ -481,7 +494,7 @@ The complete setup automatically includes:
 After running the complete setup, verify your deployment:
 ```bash
 # Check all services are running
-sudo systemctl status pihole-FTL
+sudo systemctl status AdGuardHome
 sudo systemctl status mariadb
 sudo systemctl status redis-server
 sudo systemctl status wg-quick@wg0
@@ -493,16 +506,19 @@ sudo systemctl status nginx
 df -h | grep sda  # Check SSD mount
 df -h | grep mmcblk  # Check eMMC usage
 
+# Verify port assignments (nginx on 80, AdGuard Home on 3000)
+ss -tlnp | grep -E ':(80|3000|8000|19999)'
+
 # Test services
-curl -I http://192.168.8.2              # Main dashboard
-curl -I http://192.168.8.2:8080/admin   # Pi-hole admin
+curl -I http://192.168.8.2              # Main dashboard (nginx)
+curl -I http://192.168.8.2:3000         # AdGuard Home
 curl -I http://192.168.8.2:8000         # Nextcloud
 curl -I http://192.168.8.2:19999        # Netdata
 ```
 
 **📋 Post-Deployment Checklist:**
 ```markdown
-- [ ] Change Pi-hole admin password: `pihole -a -p newpassword`
+- [ ] Change AdGuard Home admin password at http://192.168.8.2:3000
 - [ ] Create Nextcloud admin user at http://192.168.8.2:8000
 - [ ] Configure router DNS to point to 192.168.8.2 (network-wide ad-blocking)
 - [ ] Set up devices to use Squid proxy (192.168.8.2:3128)
@@ -523,15 +539,17 @@ Once installed, access your services at these URLs:
 ### 🎛️ Management & Monitoring
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Web Dashboard** | `http://192.168.8.2:81` | Unified service dashboard |
+| **Web Dashboard** | `http://192.168.8.2` | Unified service dashboard |
 | **Netdata Monitoring** | `http://192.168.8.2:19999` | Real-time system monitoring |
 | **SSH Access** | `ssh username@192.168.8.2` | System administration |
 
 ### 🛡️ Security Services  
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Pi-hole DNS Admin** | `http://192.168.8.2:8080/admin` | DNS filtering & ad-blocking |
+| **AdGuard Home** | `http://192.168.8.2:3000` | DNS filtering & ad-blocking (default) |
 | **WireGuard VPN** | Port 51820 | Secure mobile access |
+
+**Note**: AdGuard Home is the default DNS solution. See [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md) if you prefer Pi-hole.
 
 ### 📊 Storage & File Sharing
 | Service | URL | Purpose |
@@ -543,7 +561,7 @@ Once installed, access your services at these URLs:
 **⚠️ CHANGE THESE IMMEDIATELY AFTER INSTALLATION**
 
 - **Ubuntu SSH**: username@192.168.8.2 (user you created during Ubuntu installation)
-- **Pi-hole**: admin / random password (generated during setup, shown in terminal)
+- **AdGuard Home**: admin / admin123 (change after first login)
 - **Nextcloud**: admin / admin123 (change after first login)
 - **WireGuard**: Key-based authentication (QR codes generated during setup)
 - **Netdata**: No authentication by default (access from local network only)
@@ -560,7 +578,7 @@ Once installed, access your services at these URLs:
 
 1. **Connect** ZimaBoard 2 to GL.iNet X3000 via Ethernet
 2. **Configure GL.iNet X3000** (access via `192.168.8.1`):
-   - Set **Primary DNS**: `192.168.8.2` (ZimaBoard Pi-hole)
+   - Set **Primary DNS**: `192.168.8.2` (ZimaBoard AdGuard Home)
    - Set **DHCP Reservation**: `192.168.8.2` for ZimaBoard
    - **Optional**: Enable port forwarding for external access
 3. **Configure ZimaBoard** static IP (Ubuntu):
@@ -583,7 +601,7 @@ Once installed, access your services at these URLs:
    ```
 
 **🎯 Benefits of This Setup:**
-- **Network-wide ad blocking** via Pi-hole DNS
+- **Network-wide ad blocking** via AdGuard Home DNS
 - **40-75% bandwidth savings** with Squid proxy caching
 - **Professional QoS** prioritizing ZimaBoard traffic
 - **Secure remote access** via Wireguard VPN
@@ -603,7 +621,7 @@ Once installed, access your services at these URLs:
 **Check system health:**
 ```bash
 # Check all service status
-sudo systemctl status pihole-FTL mariadb redis-server wg-quick@wg0 squid netdata nginx
+sudo systemctl status AdGuardHome mariadb redis-server wg-quick@wg0 squid netdata nginx
 
 # Check resource usage
 htop
@@ -611,20 +629,20 @@ df -h
 free -h
 
 # Check logs
-sudo journalctl -u pihole-FTL --since "1 hour ago"
+sudo journalctl -u AdGuardHome --since "1 hour ago"
 sudo journalctl -u mariadb --since "1 hour ago"
 ```
 
 **Verify complete deployment:**
 ```bash
 # Test all service endpoints
-curl -I http://192.168.8.2:81           # Main dashboard (nginx)
-curl -I http://192.168.8.2:8080/admin   # Pi-hole
-curl -I http://192.168.8.2:8000         # Nextcloud
-curl -I http://192.168.8.2:19999        # Netdata
+curl -I http://192.168.8.2             # Main dashboard (nginx)
+curl -I http://192.168.8.2:3000        # AdGuard Home
+curl -I http://192.168.8.2:8000        # Nextcloud
+curl -I http://192.168.8.2:19999       # Netdata
 
 # Check service status
-sudo systemctl is-active --quiet pihole-FTL && echo "Pi-hole: ✅" || echo "Pi-hole: ❌"
+sudo systemctl is-active --quiet AdGuardHome && echo "AdGuard Home: ✅" || echo "AdGuard Home: ❌"
 sudo systemctl is-active --quiet mariadb && echo "Nextcloud DB: ✅" || echo "Nextcloud DB: ❌"
 sudo systemctl is-active --quiet wg-quick@wg0 && echo "WireGuard: ✅" || echo "WireGuard: ❌"
 ```
@@ -637,13 +655,13 @@ sudo /opt/homelab/scripts/backup-services.sh
 
 **Individual service management:**
 ```bash
-sudo systemctl status pihole-FTL    # Pi-hole status
-sudo systemctl restart mariadb      # Restart Nextcloud DB
-pihole -g                           # Update Pi-hole blocklists
-sudo wg show                        # Check VPN status
-sudo systemctl status mariadb       # Check Nextcloud database
-sudo systemctl status squid         # Check proxy status
-sudo systemctl restart netdata      # Restart monitoring
+sudo systemctl status AdGuardHome    # AdGuard Home status
+sudo systemctl restart mariadb       # Restart Nextcloud DB
+sudo systemctl restart AdGuardHome   # Restart AdGuard Home
+sudo wg show                         # Check VPN status
+sudo systemctl status mariadb        # Check Nextcloud database
+sudo systemctl status squid          # Check proxy status
+sudo systemctl restart netdata       # Restart monitoring
 ```
 
 ---
@@ -652,30 +670,63 @@ sudo systemctl restart netdata      # Restart monitoring
 
 ### 🚨 Common Issues & Quick Fixes
 
+#### Port Conflict Issues (If Using Pi-hole Alternative)
+**Note**: The default installation uses AdGuard Home (port 3000), which doesn't conflict with nginx (port 80).
+
+**Only applies if you chose to use Pi-hole instead** (see [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md)):
+
+**Problem**: Pi-hole FTL uses port 80, preventing nginx from starting.
+
+**Solution**:
+```bash
+# Change nginx to port 81
+sudo sed -i 's/listen 80 default_server;/listen 81 default_server;/g' /etc/nginx/sites-available/homelab
+sudo nginx -t
+sudo systemctl restart nginx
+sudo ufw allow 81/tcp
+```
+
+**Or migrate back to AdGuard Home**:
+```bash
+# Run the migration script
+wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/migrate-to-pihole.sh
+chmod +x migrate-to-pihole.sh
+sudo ./migrate-to-pihole.sh  # This migrates FROM Pi-hole TO AdGuard Home
+```
+
 #### Can't Access Web Services
 ```bash
 # Check and restart Nginx (main web server)
 sudo systemctl status nginx
 sudo systemctl restart nginx
+
+# Check which ports are in use
+ss -tlnp | grep -E ':(80|81|8000|8080)'
 ```
 
 #### DNS Not Working
 ```bash
-# Test DNS resolution (should use Pi-hole)
+# Test DNS resolution (should use AdGuard Home)
 nslookup google.com 192.168.8.2
 
 # Restart DNS services
-sudo systemctl restart pihole-FTL
+sudo systemctl restart AdGuardHome
+
+# Check AdGuard Home logs
+sudo journalctl -u AdGuardHome --since "1 hour ago"
 ```
 
 #### Service Won't Start
 ```bash
-# Check service status and logs
-sudo systemctl status pihole-FTL
-sudo journalctl -u pihole-FTL --since "1 hour ago"
+# Check service status and logs (example: AdGuard Home)
+sudo systemctl status AdGuardHome
+sudo journalctl -u AdGuardHome --since "1 hour ago"
 
 # Try manual restart
-sudo systemctl restart pihole-FTL
+sudo systemctl restart AdGuardHome
+
+# Check all critical services
+sudo systemctl status AdGuardHome mariadb nginx netdata
 ```
 
 #### High Memory Usage
@@ -742,23 +793,34 @@ cd /mnt/ssd && sudo dd if=/dev/zero of=test.tmp bs=1M count=100 && sudo rm test.
 
 # Check service data locations on SSD
 ls -la /mnt/ssd/
-ls -la /var/lib/pihole  # Should be symlinked to SSD
-ls -la /var/www/nextcloud/data     # Should be on SSD
+ls -la /mnt/ssd/adguardhome      # AdGuard Home data
+ls -la /var/www/nextcloud/data   # Should be on SSD
 ```
 
 #### Service-Specific Troubleshooting
 
-**Pi-hole Issues:**
+**AdGuard Home Issues:**
 ```bash
-# Fix Pi-hole DNS conflicts with systemd-resolved
-sudo systemctl stop systemd-resolved
-sudo systemctl disable systemd-resolved
-pihole reconfigure
-sudo systemctl restart pihole-FTL
+# Restart AdGuard Home
+sudo systemctl restart AdGuardHome
 
-# Reset Pi-hole password
-pihole -a -p newpassword
+# Check AdGuard Home status
+sudo systemctl status AdGuardHome
+
+# View AdGuard Home logs
+sudo journalctl -u AdGuardHome --since "1 hour ago"
+
+# Check AdGuard Home configuration
+sudo cat /opt/AdGuardHome/AdGuardHome.yaml
+
+# Reconfigure AdGuard Home (reinstall config)
+sudo /opt/AdGuardHome/AdGuardHome -s stop
+sudo /opt/AdGuardHome/AdGuardHome -s uninstall
+sudo /opt/AdGuardHome/AdGuardHome -s install
+sudo systemctl start AdGuardHome
 ```
+
+**Note**: If you're using Pi-hole instead (alternative setup), see the [Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md) for Pi-hole-specific troubleshooting.
 
 **Nextcloud Connection Problems:**
 ```bash
@@ -963,14 +1025,14 @@ sudo apt-key list
 Based on extensive research of the awesome-selfhosted database and 2025 trends, here are the best alternatives and upgrade recommendations:
 
 ### DNS & Ad Blocking Alternatives
-| Program | GitHub Stars | Status | Best For |
-|---------|-------------|--------|----------|
-| **Pi-hole** ✅ | 48.2k | Current choice | Stability & huge community |
-| **AdGuard Home** 🔥 | 30.5k | 2025 upgrade | Modern UI, better mobile app |
-| **Blocky** 🚀 | 5.6k | Emerging | Ultra-fast, container-friendly |
-| **Technitium DNS** | 4.1k | Professional | Authoritative + recursive DNS |
+| Program | GitHub Stars | Status | Best For | Port |
+|---------|-------------|--------|----------|------|
+| **AdGuard Home** ✅ | 30.5k | **Current choice** | Modern UI, DNS-over-HTTPS, no port conflicts | 3000 (web), 53 (DNS) |
+| **Pi-hole** | 48.2k | Alternative | Stability & huge community | 80 (FTL), 8080 (admin) |
+| **Blocky** 🚀 | 5.6k | Emerging | Ultra-fast, container-friendly | Configurable |
+| **Technitium DNS** | 4.1k | Professional | Authoritative + recursive DNS | Configurable |
 
-**Recommendation**: Keep Pi-hole (excellent choice), consider AdGuard Home for better mobile experience.
+**Recommendation**: **AdGuard Home is now the default** - modern features, DNS-over-HTTPS, and nginx can use port 80!
 
 ### File Sync & Personal Cloud Alternatives  
 | Program | GitHub Stars | Status | Best For |
@@ -1046,7 +1108,7 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 
 | Current Service | Keep/Upgrade | 2025 Alternative | Effort | Benefit |
 |----------------|--------------|------------------|--------|---------|
-| Pi-hole | ✅ Keep | AdGuard Home | Medium | Better mobile UI |
+| AdGuard Home | ✅ Keep | - | - | Modern & optimal |
 | Nextcloud | ✅ **UPGRADED** | - | - | **Major features added** |
 | Netdata | ✅ Keep | + Uptime Kuma | Low | Better monitoring |
 | WireGuard | ✅ Keep | - | - | Gold standard |
@@ -1054,7 +1116,7 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 | Squid | ✅ Keep | - | - | Still optimal |
 
 **🎯 Priority Recommendations for Your Setup:**
-1. **✅ Excellent current choices**: Pi-hole, Netdata, WireGuard, Nginx, **Nextcloud**
+1. **✅ Excellent current choices**: AdGuard Home, Netdata, WireGuard, Nginx, **Nextcloud**
 2. **✅ Major upgrade complete**: Nextcloud now provides office suite, calendar, contacts
 3. **Easy additions**: Immich (photos), Vaultwarden (passwords)
 4. **Future consideration**: CasaOS for easier management
@@ -1066,19 +1128,20 @@ Based on extensive research of the awesome-selfhosted database and 2025 trends, 
 
 ### Optimized Resource Allocation (16GB RAM + 2TB SSD)
 ```
-Ubuntu OS:        2-3GB RAM, 60GB eMMC (OS + services)
-Pi-hole/DNS:      ~200MB RAM (DNS filtering)  
-Nextcloud Cloud:  ~1.5GB RAM (Personal cloud + office suite)
-MariaDB:          ~300MB RAM (Nextcloud database)
-Redis Cache:      ~100MB RAM (Nextcloud caching)
-WireGuard VPN:    ~50MB RAM (VPN server)
-Squid Proxy:      ~200MB RAM (Bandwidth optimization)
-Netdata Monitor:  ~100MB RAM (System monitoring)
-Nginx Proxy:      ~100MB RAM (Web server & reverse proxy)
-Available:        11+ GB RAM, 1.9TB+ SSD storage
-eMMC Usage:       60GB used, 4GB safety margin
+Ubuntu OS:          2-3GB RAM, 60GB eMMC (OS + services)
+AdGuard Home/DNS:   ~150MB RAM (DNS filtering + DNS-over-HTTPS)  
+Nextcloud Cloud:    ~1.5GB RAM (Personal cloud + office suite)
+MariaDB:            ~300MB RAM (Nextcloud database)
+Redis Cache:        ~100MB RAM (Nextcloud caching)
+WireGuard VPN:      ~50MB RAM (VPN server)
+Squid Proxy:        ~200MB RAM (Bandwidth optimization)
+Netdata Monitor:    ~100MB RAM (System monitoring)
+Nginx Proxy:        ~100MB RAM (Web server & reverse proxy)
+Available:          11+ GB RAM, 1.9TB+ SSD storage
+eMMC Usage:         60GB used, 4GB safety margin
 
 Storage Distribution:
+- /mnt/ssd/adguardhome: AdGuard Home data and DNS query logs
 - /mnt/ssd/nextcloud: User files, calendar, contacts, documents
 - /mnt/ssd/mysql: Nextcloud database and metadata
 - /mnt/ssd/logs: All system and service logs  
@@ -1098,6 +1161,7 @@ Storage Distribution:
 - **[Cellular Optimization Guide](docs/CELLULAR_OPTIMIZATION.md)**: Bandwidth-saving strategies
 - **[Network Setup Guide](docs/NETWORK_SETUP.md)**: Advanced networking configuration
 - **[GL.iNet X3000 Setup](docs/network/gl-inet-x3000-setup.md)**: Complete X3000 cellular router configuration
+- **[Pi-hole Alternative Guide](docs/PIHOLE_ALTERNATIVE.md)**: How to use Pi-hole instead of AdGuard Home
 
 ### What's New with Ubuntu Server 24.04 LTS Approach
 - **🚀 Ubuntu Server 24.04 LTS** base system (5-year support lifecycle)
@@ -1130,11 +1194,15 @@ sudo ufw status
 
 # Basic rules (automatically configured by setup script)
 sudo ufw allow 22/tcp     # SSH
-sudo ufw allow 53/tcp     # Pi-hole DNS
-sudo ufw allow 53/udp     # Pi-hole DNS  
-sudo ufw allow 81/tcp     # Nginx web UI (changed from 80)
-sudo ufw allow 8080/tcp   # Pi-hole web UI
+sudo ufw allow 53/tcp     # AdGuard Home DNS
+sudo ufw allow 53/udp     # AdGuard Home DNS  
+sudo ufw allow 80/tcp     # Nginx web UI (no more conflicts!)
+sudo ufw allow 3000/tcp   # AdGuard Home web UI
 sudo ufw allow 8000/tcp   # Nextcloud
+sudo ufw allow 51820/udp  # WireGuard VPN
+sudo ufw allow 19999/tcp  # Netdata (local network only)
+sudo ufw deny 3128/tcp    # Squid proxy (internal only)
+```
 sudo ufw allow 51820/udp  # WireGuard VPN
 sudo ufw allow 19999/tcp  # Netdata (local network only)
 sudo ufw deny 3128/tcp    # Squid proxy (internal only)

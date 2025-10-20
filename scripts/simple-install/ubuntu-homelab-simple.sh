@@ -324,11 +324,11 @@ ufw --force enable
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow ssh
-ufw allow 81/tcp    # Web services (changed from 80)
+ufw allow 80/tcp    # Nginx (no conflict with AdGuard Home!)
 ufw allow 443/tcp   # HTTPS
 ufw allow 53/tcp    # DNS
 ufw allow 53/udp    # DNS
-ufw allow 8080/tcp  # Pi-hole admin
+ufw allow 3000/tcp  # AdGuard Home Web UI
 ufw allow 8000/tcp  # Nextcloud
 ufw allow 3128/tcp  # Squid proxy
 ufw allow 19999/tcp # Netdata
@@ -359,7 +359,7 @@ print_success "eMMC optimizations applied"
 if [ "$SSD_AVAILABLE" = true ]; then
     print_status "💾 Configuring SSD data directories..."
     # Create data directories on SSD
-    mkdir -p /mnt/ssd-data/{nextcloud,pihole,squid-cache,backups,logs}
+    mkdir -p /mnt/ssd-data/{nextcloud,adguardhome,squid-cache,backups,logs}
     
     # Move log directory to SSD to reduce eMMC writes
     if [ ! -L /var/log ] && [ -d /mnt/ssd-data ]; then
@@ -374,24 +374,171 @@ if [ "$SSD_AVAILABLE" = true ]; then
 else
     print_status "💾 Configuring eMMC data directories..."
     # Create data directories on eMMC (fallback)
-    mkdir -p /opt/homelab-data/{nextcloud,pihole,squid-cache,backups,logs}
+    mkdir -p /opt/homelab-data/{nextcloud,adguardhome,squid-cache,backups,logs}
     DATA_DIR="/opt/homelab-data"
     print_warning "Using eMMC storage - consider adding SSD for better performance"
 fi
 
-# 6. Install Pi-hole
-print_status "��️ Installing Pi-hole..."
-mkdir -p /etc/pihole
-echo "WEBPASSWORD=admin123" > /etc/pihole/setupVars.conf
-curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+# 6. Install AdGuard Home
+print_status "🔥 Installing AdGuard Home..."
 
-# Configure Pi-hole to use designated storage
-if [ -f /etc/pihole/pihole-FTL.conf ]; then
-    echo "DBFILE=${DATA_DIR}/pihole/pihole-FTL.db" >> /etc/pihole/pihole-FTL.conf
-fi
+# Create directories
+ADGUARD_INSTALL_DIR="/opt/AdGuardHome"
+ADGUARD_WORK_DIR="${DATA_DIR}/adguardhome"
+mkdir -p "$ADGUARD_INSTALL_DIR"
+mkdir -p "$ADGUARD_WORK_DIR"
 
-systemctl enable pihole-FTL
-print_success "Pi-hole installed and configured"
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64)
+        ADGUARD_ARCH="amd64"
+        ;;
+    aarch64|arm64)
+        ADGUARD_ARCH="arm64"
+        ;;
+    armv7l|armhf)
+        ADGUARD_ARCH="armv7"
+        ;;
+    *)
+        print_error "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+# Download latest AdGuard Home
+ADGUARD_VERSION=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+ADGUARD_URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/${ADGUARD_VERSION}/AdGuardHome_linux_${ADGUARD_ARCH}.tar.gz"
+
+print_status "Downloading AdGuard Home $ADGUARD_VERSION..."
+cd /tmp
+curl -L -o AdGuardHome.tar.gz "$ADGUARD_URL"
+tar -xzf AdGuardHome.tar.gz
+cd AdGuardHome
+mv AdGuardHome "$ADGUARD_INSTALL_DIR/"
+chmod +x "$ADGUARD_INSTALL_DIR/AdGuardHome"
+cd /
+rm -rf /tmp/AdGuardHome /tmp/AdGuardHome.tar.gz
+
+# Create AdGuard Home configuration
+cat > "$ADGUARD_WORK_DIR/AdGuardHome.yaml" << 'AGHEOF'
+bind_host: 0.0.0.0
+bind_port: 3000
+users:
+  - name: admin
+    password: $2a$10$jU3FqELn3cqV/4gkH5w5z.mf5h9q2lZ8L6rG5tF8uVwK7u6p5F5G.
+auth_attempts: 5
+block_auth_min: 15
+http_proxy: ""
+language: en
+theme: auto
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  anonymize_client_ip: false
+  ratelimit: 0
+  ratelimit_whitelist: []
+  refuse_any: true
+  upstream_dns:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+  upstream_dns_file: ""
+  bootstrap_dns:
+    - 1.1.1.1
+    - 1.0.0.1
+  fallback_dns: []
+  all_servers: false
+  fastest_addr: false
+  fastest_timeout: 1s
+  allowed_clients: []
+  disallowed_clients: []
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+  trusted_proxies:
+    - 127.0.0.0/8
+    - ::1/128
+  cache_size: 4194304
+  cache_ttl_min: 0
+  cache_ttl_max: 0
+  cache_optimistic: false
+  bogus_nxdomain: []
+  aaaa_disabled: false
+  enable_dnssec: false
+  edns_client_subnet:
+    custom_ip: ""
+    enabled: false
+    use_custom: false
+  max_goroutines: 300
+  handle_ddr: true
+  ipset: []
+  ipset_file: ""
+  bootstrap_prefer_ipv6: false
+  upstream_timeout: 10s
+  private_networks: []
+  use_private_ptr_resolvers: true
+  local_ptr_upstreams: []
+  use_dns64: false
+  dns64_prefixes: []
+  serve_http3: false
+  use_http3_upstreams: false
+tls:
+  enabled: false
+querylog:
+  enabled: true
+  file_enabled: true
+  interval: 2160h
+  size_memory: 1000
+  ignored: []
+statistics:
+  enabled: true
+  interval: 24h
+  ignored: []
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
+    name: AdAway Default Blocklist
+    id: 2
+whitelist_filters: []
+user_rules: []
+dhcp:
+  enabled: false
+clients:
+  runtime_sources:
+    whois: true
+    arp: true
+    rdns: true
+    dhcp: true
+    hosts: true
+  persistent: []
+log:
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: false
+  verbose: false
+os:
+  group: ""
+  user: ""
+  rlimit_nofile: 0
+schema_version: 27
+AGHEOF
+
+# Install as service
+cd "$ADGUARD_INSTALL_DIR"
+./AdGuardHome -s install -w "$ADGUARD_WORK_DIR"
+systemctl enable AdGuardHome
+systemctl start AdGuardHome
+
+print_success "AdGuard Home installed and configured"
 
 # 7. Install and Configure Nginx
 print_status "🌐 Configuring Nginx reverse proxy..."
@@ -412,7 +559,7 @@ PHP_VERSION="8.3"
 # Create Nginx configuration file using cat for maximum reliability
 cat > /etc/nginx/sites-available/homelab << 'NGINXEOF'
 server {
-    listen 81 default_server;
+    listen 80 default_server;
     server_name _;
     
     location / {
@@ -420,8 +567,8 @@ server {
         index index.html;
     }
     
-    location /admin {
-        proxy_pass http://127.0.0.1:8080/admin;
+    location /adguard/ {
+        proxy_pass http://127.0.0.1:3000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -768,10 +915,10 @@ cat > /var/www/html/index.html << 'HTML_EOF'
         
         <div class="services">
             <div class="service">
-                <h3>🕳️ Pi-hole DNS</h3>
-                <p>Network-wide ad blocking and DNS filtering</p>
+                <h3>� AdGuard Home DNS</h3>
+                <p>Modern DNS filtering with advanced features & beautiful UI</p>
                 <div class="status">Status: Active</div>
-                <a href="/admin">Admin Interface</a>
+                <a href=":3000">Admin Interface</a>
             </div>
             
             <div class="service">
@@ -852,17 +999,17 @@ sysctl -p
 
 # Restart services
 systemctl restart nginx
-systemctl restart pihole-FTL
+systemctl restart AdGuardHome
 
 # Summary
 echo ""
 print_success "🎉 ZimaBoard 2 Simple Homelab Setup Complete!"
 echo ""
 echo "📋 Services installed and configured:"
-echo "   🕳️  Pi-hole DNS:      http://192.168.8.2/admin (admin/admin123)"
+echo "   � AdGuard Home DNS: http://192.168.8.2:3000 (admin/admin123)"
 echo "   ☁️  Nextcloud Cloud:  http://192.168.8.2:8000 (admin/admin123)" 
 echo "   📊 Netdata Monitor:   http://192.168.8.2/netdata"
-echo "   🌐 Web Dashboard:     http://192.168.8.2:81"
+echo "   🌐 Web Dashboard:     http://192.168.8.2"
 echo "   🔄 Squid Proxy:      192.168.8.2:3128"
 echo "   🔐 Wireguard VPN:    /etc/wireguard/client.conf"
 echo ""
