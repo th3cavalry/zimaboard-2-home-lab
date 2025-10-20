@@ -15,7 +15,7 @@
 1. **Install Ubuntu Server 24.04 LTS** on your ZimaBoard 2 → [Jump to Installation](#ubuntu-installation)
 2. **Run one command** to deploy everything:
    ```bash
-   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | bash
+   curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
    ```
 3. **Access your services** at: `http://192.168.8.2` 🎉
 
@@ -406,9 +406,7 @@ curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main
 ssh username@192.168.8.2
 
 # One command installs everything with eMMC optimization + 2TB SSD setup!
-wget https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/ubuntu-homelab-simple.sh
-chmod +x ubuntu-homelab-simple.sh
-sudo ./ubuntu-homelab-simple.sh
+curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/scripts/simple-install/ubuntu-homelab-simple.sh | sudo bash
 ```
 
 **🎉 That's it! Your Ubuntu homelab is ready!**

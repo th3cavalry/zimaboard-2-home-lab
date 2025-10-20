@@ -10,6 +10,13 @@ echo "🚀 ZimaBoard 2 Simple Homelab Setup Starting..."
 echo "📱 Installing all services directly on Ubuntu Server"
 echo ""
 
+# Check if running as root
+if [[ $EUID -ne 0 ]]; then
+   echo "❌ This script must be run as root (use sudo)"
+   echo "💡 Please run: sudo bash $0"
+   exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
