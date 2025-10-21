@@ -1,0 +1,91 @@
+MIT License
+
+Copyright (c) 2025 th3cavalry
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Third-Party Software Licenses
+
+This project includes and integrates with several third-party software packages,
+each with their own licensing terms:
+
+### AdGuard Home
+- License: GNU General Public License v3.0
+- Source: https://github.com/AdguardTeam/AdGuardHome
+- Copyright: AdGuard Software Limited
+
+### Nextcloud
+- License: GNU Affero General Public License v3.0
+- Source: https://github.com/nextcloud/server
+- Copyright: Nextcloud GmbH
+
+### Nginx
+- License: 2-clause BSD License
+- Source: https://github.com/nginx/nginx
+- Copyright: Igor Sysoev, Nginx, Inc.
+
+### Ubuntu Server
+- License: Various (primarily GPL and compatible licenses)
+- Source: https://ubuntu.com/
+- Copyright: Canonical Ltd.
+
+### PHP
+- License: PHP License v3.01
+- Source: https://github.com/php/php-src
+- Copyright: The PHP Group
+
+### Hagezi DNS Blocklists
+- License: GNU General Public License v3.0
+- Source: https://github.com/hagezi/dns-blocklists
+- Copyright: hagezi
+
+---
+
+## Disclaimer
+
+This project is an automation and configuration tool that installs and configures
+existing open-source software. The authors of this project are not responsible
+for the individual software components' functionality, security, or licensing
+compliance.
+
+Users are responsible for:
+- Ensuring compliance with all applicable licenses
+- Understanding the security implications of running these services
+- Maintaining and updating the software components
+- Backing up important data
+- Securing their network and systems
+
+---
+
+## Attribution
+
+When redistributing this software or creating derivative works, please maintain
+this license notice and provide appropriate attribution to the original authors
+and the third-party software components used.
+
+For commercial use or custom deployments, please review the individual licenses
+of all components to ensure compliance with your use case.
+
+---
+
+*This license applies to the configuration scripts, documentation, and original
+code created for this project. Individual software components retain their
+original licenses and terms.*

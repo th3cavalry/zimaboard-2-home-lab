@@ -1,0 +1,288 @@
+# ZimaBoard 2 Ultimate Homelab - Git Ignore File
+
+################################################################################
+# Environment and Secrets
+################################################################################
+
+# Environment variables (contains passwords and sensitive data)
+.env
+.env.local
+.env.production
+.env.staging
+
+# SSH keys and certificates
+*.key
+*.pem
+*.crt
+*.p12
+id_rsa*
+id_ed25519*
+
+# API keys and tokens
+*.token
+*.secret
+api_keys.txt
+
+################################################################################
+# Configuration Files with Sensitive Data
+################################################################################
+
+# AdGuard Home configuration (may contain admin passwords)
+AdGuardHome.yaml
+adguard_config.yaml
+
+# Nextcloud configuration
+nextcloud_config.php
+config.php
+
+# Nginx SSL certificates
+ssl/
+certs/
+*.ssl
+
+################################################################################
+# Data Directories
+################################################################################
+
+# User data (should be backed up separately)
+data/
+nextcloud_data/
+adguard_data/
+cache_data/
+
+# Logs (can be large and regenerated)
+logs/
+*.log
+*.log.*
+*.log.gz
+
+# Temporary files
+tmp/
+temp/
+cache/
+.cache/
+
+################################################################################
+# System and Runtime Files
+################################################################################
+
+# Process IDs
+*.pid
+
+# Socket files
+*.sock
+
+# Database files (if using SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+backup_*
+*.tar.gz
+*.zip
+
+################################################################################
+# Development and Testing
+################################################################################
+
+# IDE and editor files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+test_*
+*.test
+testing/
+
+# Development containers
+.devcontainer/
+
+################################################################################
+# Docker and Container Files
+################################################################################
+
+# Docker volumes and data
+docker_data/
+volumes/
+
+# Docker Compose override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Container logs
+container_logs/
+
+################################################################################
+# System Files (Linux/macOS/Windows)
+################################################################################
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+################################################################################
+# Package Managers
+################################################################################
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+################################################################################
+# Archives and Compressed Files
+################################################################################
+
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+################################################################################
+# Custom Application Data
+################################################################################
+
+# Nextcloud specific
+nextcloud/data/
+nextcloud/config/config.php
+
+# AdGuard Home specific
+AdGuardHome/data/
+AdGuardHome/conf/
+
+# Nginx specific
+nginx/logs/
+nginx/cache/
+
+################################################################################
+# Monitoring and Analytics
+################################################################################
+
+# Metrics and monitoring data
+metrics/
+monitoring/
+grafana_data/
+prometheus_data/
+
+################################################################################
+# Local Customizations
+################################################################################
+
+# Local scripts and customizations
+local/
+custom/
+my_*
+local_*
+
+# User-specific configurations
+user_config.*
+local_config.*
+
+################################################################################
+# Commonly Ignored Files
+################################################################################
+
+# Temporary and swap files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Lock files
+*.lock
+package-lock.json
+yarn.lock
+
+# Runtime and compilation artifacts
+*.o
+*.so
+*.dylib
+*.exe
+*.dll
+
+################################################################################
+# Project Specific
+################################################################################
+
+# Installation logs
+install_*.log
+setup_*.log
+
+# Status and health check files
+health_*
+status_*
+
+# Configuration templates after population
+config_generated.*
+
+################################################################################
+# Documentation Build Files
+################################################################################
+
+# Generated documentation
+docs/_build/
+docs/build/
+site/
+
+################################################################################
+# Security Scanner Results
+################################################################################
+
+# Security scan results
+security_scan.*
+vulnerability_report.*
+
+################################################################################
+# Network Configuration Backups
+################################################################################
+
+# Router configurations (may contain passwords)
+router_backup.*
+network_config.*
+
+################################################################################
+# Notes
+################################################################################
+
+# This .gitignore file is designed to protect sensitive information
+# while allowing the project structure and configuration templates
+# to be safely shared in a public repository.
+#
+# Always review files before committing to ensure no sensitive
+# data is accidentally included.
+#
+# For production deployments, consider using git-crypt or similar
+# tools for encrypting sensitive configuration files.
+################################################################################

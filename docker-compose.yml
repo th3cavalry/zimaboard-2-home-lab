@@ -1,0 +1,163 @@
+version: '3.8'
+
+################################################################################
+# ZimaBoard 2 Ultimate Homelab - Docker Compose (Optional)
+# 
+# Alternative Docker-based installation for advanced users
+# Use this if you prefer containerized services over native installation
+################################################################################
+
+networks:
+  homelab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  adguard_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/ssd-data/adguard
+  nextcloud_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/ssd-data/nextcloud
+  nginx_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/hdd-cache/nginx
+
+services:
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard-home
+    hostname: adguard
+    restart: unless-stopped
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.2
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000/tcp"
+    volumes:
+      - adguard_data:/opt/adguardhome/work
+      - ./config/adguard:/opt/adguardhome/conf
+    environment:
+      - TZ=UTC
+    cap_add:
+      - NET_ADMIN
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    hostname: nginx
+    restart: unless-stopped
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.3
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx:/etc/nginx
+      - ./web:/var/www/html
+      - nginx_cache:/var/cache/nginx
+      - /var/log/nginx:/var/log/nginx
+    environment:
+      - TZ=UTC
+    depends_on:
+      - nextcloud
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  nextcloud:
+    image: nextcloud:apache
+    container_name: nextcloud
+    hostname: nextcloud
+    restart: unless-stopped
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.4
+    ports:
+      - "8080:80"
+    volumes:
+      - nextcloud_data:/var/www/html
+      - ./config/nextcloud:/var/www/html/config
+    environment:
+      - NEXTCLOUD_ADMIN_USER=admin
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-changeme123}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${SYSTEM_IP} localhost
+      - SQLITE_DATABASE=1
+      - NEXTCLOUD_DATA_DIR=/var/www/html/data
+      - TZ=UTC
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    hostname: watchtower
+    restart: unless-stopped
+    networks:
+      - homelab
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400
+      - WATCHTOWER_LABEL_ENABLE=true
+      - TZ=UTC
+    command: --schedule "0 0 4 * * *"
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    hostname: homepage
+    restart: unless-stopped
+    networks:
+      homelab:
+        ipv4_address: 172.20.0.5
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./config/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ=UTC
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+################################################################################
+# Usage Instructions:
+# 
+# 1. Create required directories:
+#    sudo mkdir -p /mnt/ssd-data/{adguard,nextcloud}
+#    sudo mkdir -p /mnt/hdd-cache/nginx
+#    sudo mkdir -p config/{adguard,nginx,nextcloud,homepage}
+#
+# 2. Set environment variables:
+#    cp .env.example .env
+#    nano .env
+#
+# 3. Deploy the stack:
+#    docker-compose up -d
+#
+# 4. Access services:
+#    - Dashboard: http://your-ip:3001
+#    - AdGuard: http://your-ip:3000
+#    - Nextcloud: http://your-ip:8080
+#    - Nginx: http://your-ip
+#
+# Note: This is an alternative to the native install.sh script.
+# Use either this Docker method OR the native installation, not both.
+################################################################################
