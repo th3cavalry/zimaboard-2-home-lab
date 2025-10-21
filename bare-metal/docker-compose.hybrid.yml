@@ -1,0 +1,195 @@
+version: '3.8'
+
+################################################################################
+# ZimaBoard Homelab - Hybrid Docker Services (Path B)
+# 
+# This docker-compose file is for Path B (Bare-Metal/Hybrid) installations.
+# It contains only the services that are complex to install bare-metal:
+# - Lancache (game download and content caching)
+# - Optional: Uptime Kuma (network monitoring)
+# - Optional: CrowdSec (intrusion prevention)
+#
+# AdGuard Home and Samba are installed directly on the host OS via install.sh
+#
+# Prerequisites:
+# 1. Docker and Docker Compose installed
+# 2. Storage devices mounted (2TB SSD at /mnt/ssd, 500GB HDD at /mnt/hdd)
+# 3. .env.hybrid file configured with your settings
+# 4. AdGuard Home and Samba already installed via install.sh
+################################################################################
+
+networks:
+  homelab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.20.0.0/16}
+          gateway: ${DOCKER_GATEWAY:-172.20.0.1}
+
+services:
+
+  ################################################################################
+  # Lancache - Gaming & Content Cache Server
+  ################################################################################
+  lancache:
+    image: lancachenet/monolithic:latest
+    container_name: lancache
+    hostname: lancache
+    restart: unless-stopped
+    
+    # Network Configuration
+    networks:
+      homelab:
+        ipv4_address: ${LANCACHE_DOCKER_IP:-172.20.0.3}
+    
+    # Port Mappings
+    ports:
+      - "${LANCACHE_HTTP_PORT:-80}:80/tcp"      # HTTP cache port
+      - "${LANCACHE_HTTPS_PORT:-443}:443/tcp"   # HTTPS cache port
+    
+    # Volume Mappings
+    # Cache storage on HDD for maximum capacity
+    volumes:
+      - ${DATA_PATH_HDD:-/mnt/hdd}/lancache:/data/cache
+      - ${DATA_PATH_HDD:-/mnt/hdd}/lancache-logs:/data/logs
+    
+    # Environment Variables
+    environment:
+      - TZ=${TIMEZONE:-UTC}
+      - CACHE_MEM_SIZE=500m                          # Memory for cache index
+      - CACHE_DISK_SIZE=${LANCACHE_MAX_SIZE:-400}g   # Max cache size on disk
+      - CACHE_MAX_AGE=3650d                          # Keep cached content for 10 years
+      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} # Fallback DNS
+    
+    # Logging Configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ################################################################################
+  # Optional: Uptime Kuma - Network Monitoring
+  # Uncomment the section below to enable Uptime Kuma for monitoring services
+  ################################################################################
+  
+  # uptime-kuma:
+  #   image: louislam/uptime-kuma:latest
+  #   container_name: uptime-kuma
+  #   hostname: uptime-kuma
+  #   restart: unless-stopped
+  #   
+  #   # Network Configuration
+  #   networks:
+  #     homelab:
+  #       ipv4_address: ${UPTIME_KUMA_DOCKER_IP:-172.20.0.10}
+  #   
+  #   # Port Mappings
+  #   ports:
+  #     - "${UPTIME_KUMA_PORT:-3001}:3001/tcp"  # Web interface
+  #   
+  #   # Volume Mappings
+  #   volumes:
+  #     - ./data/uptime-kuma:/app/data  # Monitoring data and configuration
+  #   
+  #   # Environment Variables
+  #   environment:
+  #     - TZ=${TIMEZONE:-UTC}
+
+  ################################################################################
+  # Optional: CrowdSec - Intrusion Prevention System
+  # Uncomment the section below to enable CrowdSec for security monitoring
+  ################################################################################
+  
+  # crowdsec:
+  #   image: crowdsecurity/crowdsec:latest
+  #   container_name: crowdsec
+  #   hostname: crowdsec
+  #   restart: unless-stopped
+  #   
+  #   # Network Configuration
+  #   networks:
+  #     homelab:
+  #       ipv4_address: ${CROWDSEC_DOCKER_IP:-172.20.0.11}
+  #   
+  #   # Port Mappings
+  #   ports:
+  #     - "${CROWDSEC_API_PORT:-8080}:8080/tcp"  # API port
+  #   
+  #   # Volume Mappings
+  #   volumes:
+  #     - ./data/crowdsec/config:/etc/crowdsec       # Configuration
+  #     - ./data/crowdsec/data:/var/lib/crowdsec/data  # Database
+  #     - /var/log:/var/log:ro                       # System logs (read-only)
+  #   
+  #   # Environment Variables
+  #   environment:
+  #     - TZ=${TIMEZONE:-UTC}
+  #     - COLLECTIONS=crowdsecurity/linux crowdsecurity/sshd crowdsecurity/http-cve
+  #   
+  #   # Security capabilities
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_RAW
+
+################################################################################
+# USAGE INSTRUCTIONS FOR PATH B (BARE-METAL/HYBRID)
+################################################################################
+#
+# 1. COMPLETE BARE-METAL INSTALLATION FIRST:
+#    cd bare-metal
+#    sudo bash install.sh
+#    This installs AdGuard Home and Samba directly on the host
+#
+# 2. PREPARE STORAGE:
+#    Ensure your storage is mounted:
+#    - 2TB SSD at /mnt/ssd (for Samba share)
+#    - 500GB HDD at /mnt/hdd (for Lancache)
+#
+#    Create required directories:
+#    sudo mkdir -p /mnt/hdd/lancache /mnt/hdd/lancache-logs
+#    sudo chmod -R 777 /mnt/hdd/lancache /mnt/hdd/lancache-logs
+#
+# 3. CONFIGURE ENVIRONMENT:
+#    cp .env.hybrid.example .env.hybrid
+#    nano .env.hybrid
+#    
+#    Update at minimum:
+#    - SERVER_IP (your ZimaBoard's IP, e.g., 192.168.8.2)
+#    - DATA_PATH_HDD (e.g., /mnt/hdd)
+#    - TIMEZONE (e.g., America/New_York)
+#
+# 4. DEPLOY HYBRID SERVICES:
+#    docker compose -f docker-compose.hybrid.yml --env-file .env.hybrid up -d
+#
+# 5. CHECK STATUS:
+#    docker compose -f docker-compose.hybrid.yml ps
+#    docker compose -f docker-compose.hybrid.yml logs -f
+#
+# 6. ACCESS SERVICES:
+#    - AdGuard Home: http://YOUR-SERVER-IP:3000 (installed on host)
+#    - Samba Share: \\YOUR-SERVER-IP\Shared (installed on host)
+#    - Lancache: Transparent (works through DNS rewrites in AdGuard)
+#
+# 7. ENABLE OPTIONAL SERVICES:
+#    Edit this file and uncomment the uptime-kuma or crowdsec sections
+#    Then run: docker compose -f docker-compose.hybrid.yml --env-file .env.hybrid up -d
+#
+################################################################################
+
+################################################################################
+# WHY HYBRID APPROACH?
+################################################################################
+#
+# Path B uses a hybrid approach because:
+#
+# 1. AdGuard Home: Simple to install bare-metal, better performance on host
+# 2. Samba: Native host installation provides better file I/O performance
+# 3. Lancache: Complex multi-container setup, easier to manage via Docker
+#
+# This gives you the best of both worlds:
+# - Performance where it matters (Samba on host)
+# - Simplicity for complex services (Lancache in Docker)
+# - Easy management of optional services (all in Docker)
+#
+################################################################################

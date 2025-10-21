@@ -1,6 +1,6 @@
 # 🏠 ZimaBoard Homelab Services
 
-**A complete, production-ready containerized homelab solution optimized for ZimaBoard 2 hardware**
+**A complete, production-ready homelab solution with TWO installation paths**
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docs.docker.com/compose/)
 [![Ubuntu Server](https://img.shields.io/badge/Ubuntu-Server%2022.04%20LTS-orange)](https://ubuntu.com/server)
@@ -9,22 +9,26 @@
 
 ## 📋 Introduction
 
-This repository provides a complete Docker-based homelab configuration specifically designed for the ZimaBoard 2 hardware platform. It includes network-wide ad blocking, game download caching, and network file storage—all optimized for cellular broadband environments.
+This repository provides a complete homelab configuration specifically designed for the **ZimaBoard 2** hardware platform. It offers **TWO distinct installation paths** to suit different needs:
 
-### What You Get
+- **Path A**: Fully Containerized (Docker) - **Recommended for most users**
+- **Path B**: Bare-Metal/Hybrid - For performance-focused users
+
+### Project Goals
+
+- **Network Security**: DNS-based ad blocking and filtering with AdGuard Home
+- **Bandwidth Optimization**: Game/OS update caching to reduce cellular data usage with Lancache
+- **File Storage**: Simple, high-performance network file sharing with Samba (approx. 1TB)
+- **eMMC Longevity**: Optimized to minimize write cycles on the 64GB eMMC boot drive
+- **Optional Monitoring**: Network health tracking and intrusion prevention
+
+### Core Services
 
 - **🛡️ AdGuard Home**: Network-wide ad blocking and DNS security
 - **⚡ Lancache**: Gaming and software download cache (Steam, Epic Games, etc.)
 - **📁 Samba**: Simple, high-performance network file storage (1TB)
 - **📊 Optional Monitoring**: Uptime Kuma for service health tracking
 - **🔒 Optional Security**: CrowdSec for intrusion prevention
-
-### Why This Setup?
-
-- **Bandwidth Optimized**: Cache downloads to reduce cellular data usage
-- **Hardware Optimized**: Efficient use of your 16GB RAM and multi-drive setup
-- **Container-Based**: Easy deployment, updates, and management with Docker
-- **Production Ready**: Complete documentation for both automated and manual setup
 
 ---
 
@@ -43,56 +47,79 @@ This setup is optimized for the following specifications:
 
 ### Network Hardware
 - **GL.iNet x3000 Router**
-  - Configured with WAN port reconfigured as LAN port
-  - ZimaBoard connected via both NICs to LAN ports
-  - Cellular broadband internet connection
+  - Configured with cellular broadband connection
+  - ZimaBoard connected via Ethernet to LAN port
+  - All client devices connect wirelessly
 
 ### Network Configuration
-- **ZimaBoard Static IP**: 192.168.8.2 (preconfigured)
+- **ZimaBoard Static IP**: 192.168.8.2 (only hardwired device)
 - **All client devices**: Connected wirelessly to x3000
-- **ZimaBoard**: Only hardwired device on network
+- **Internet**: Cellular broadband (bandwidth optimization critical)
 
 ---
 
 ## 🗂️ Repository Structure
 
 ```
-zimaboard-homelab-services/
-├── .env.example                    # Environment configuration template
-├── docker-compose.yml              # Main Docker Compose configuration
-├── README.md                       # This file
-├── configs/                        # Service configurations
-│   ├── adguardhome/
-│   │   └── README.md              # AdGuard Home config placeholder
-│   ├── lancache/
-│   │   └── README.md              # Lancache config placeholder
-│   └── samba/
-│       └── smb.conf               # Pre-configured Samba configuration
-└── data/                          # Persistent data directories
-    ├── adguardhome/
-    │   └── README.md              # AdGuard Home data placeholder
-    └── fileshare/
-        └── README.md              # Samba share mount point
+/zimaboard-homelab-services/
+├── README.md                 # This file - Main guide with "Choose Your Path"
+│
+├── docker-compose.yml        # Path A: Fully Containerized
+├── .env.example              # Path A: Environment configuration
+│
+├── bare-metal/
+│   ├── install.sh            # Path B: Main installation script
+│   ├── docker-compose.hybrid.yml # Path B: Docker for Lancache/Optional
+│   └── .env.hybrid.example   # Path B: Docker environment config
+│
+└── configs/
+    └── samba/
+        └── smb.conf          # Pre-configured Samba config file
 ```
 
 ---
 
-## 🚀 Part 1: Host (ZimaBoard) Preparation
+## 🚀 Section 1: Host Preparation (Common to Both Paths)
 
-This section covers the manual setup of your ZimaBoard 2 before deploying Docker services.
+This section covers the manual setup of your ZimaBoard 2 before choosing your installation path. **Both Path A and Path B require these steps.**
 
-### Step 1: Install Base Operating System
+### Step 1.1: Install Ubuntu Server 22.04 LTS
 
-This guide assumes you have **Ubuntu Server 22.04 LTS** installed on your ZimaBoard 2's 64GB eMMC storage.
+This guide assumes you will install **Ubuntu Server 22.04 LTS** on your ZimaBoard 2's 64GB eMMC storage.
 
-**Installation Notes:**
-- Download Ubuntu Server 22.04 LTS from [ubuntu.com/download/server](https://ubuntu.com/download/server)
-- Create a bootable USB drive using [Rufus](https://rufus.ie/) (Windows) or `dd` (Linux/Mac)
-- Boot ZimaBoard from USB and follow the installation wizard
-- Configure network settings to use static IP: 192.168.8.2
-- Create an admin user account during installation
+**Installation Steps:**
 
-### Step 2: Install Docker and Docker Compose
+1. Download Ubuntu Server 22.04 LTS from [ubuntu.com/download/server](https://ubuntu.com/download/server)
+2. Create a bootable USB drive:
+   - **Windows**: Use [Rufus](https://rufus.ie/) or [Etcher](https://www.balena.io/etcher/)
+   - **Linux/Mac**: Use `dd` command or [Etcher](https://www.balena.io/etcher/)
+3. Boot ZimaBoard from USB:
+   - Insert USB drive into ZimaBoard
+   - Power on and press F2 or Delete to enter BIOS
+   - Set USB as first boot device
+   - Save and exit
+4. Follow Ubuntu installation wizard:
+   - Select language and keyboard layout
+   - Configure network with **static IP: 192.168.8.2**
+   - Create an admin user account
+   - Select "Install OpenSSH server" when prompted
+   - **Important**: Install to the eMMC drive (usually /dev/mmcblk0)
+   - Complete installation and reboot
+
+**⚠️ eMMC Longevity Considerations:**
+
+The 64GB eMMC has limited write cycles (typically 3,000-5,000 cycles). To maximize its lifespan:
+
+- **Minimize swap usage**: With 16GB RAM, swap is rarely needed
+- **Use external storage**: Store all service data on SSD/HDD, not eMMC
+- **Reduce logging**: Configure services to log to external storage or reduce log levels
+- **Disable unnecessary services**: Remove services that frequently write to disk
+
+We'll implement these optimizations during setup.
+
+### Step 1.2: Install Docker and Docker Compose
+
+**Both paths require Docker** (Path A uses it for all services, Path B uses it for Lancache and optional services).
 
 SSH into your ZimaBoard and install Docker:
 
@@ -132,30 +159,44 @@ docker --version
 docker compose version
 ```
 
-### Step 3: Prepare Storage (Critical Step)
+**eMMC Optimization - Move Docker to External Storage (Optional but Recommended):**
+
+By default, Docker stores images and containers on the eMMC. To preserve eMMC lifespan:
+
+```bash
+# Stop Docker
+sudo systemctl stop docker
+
+# Move Docker data directory to SSD (after mounting in next step)
+# We'll do this after Step 1.3
+
+# For now, just note that this optimization exists
+```
+
+### Step 1.3: Prepare Storage Drives (Critical Step)
 
 This step prepares your 2TB SSD and 500GB HDD for use with the homelab services.
 
-#### Identify Your Drives
+#### 1.3.1: Identify Your Drives
 
 ```bash
 # List all block devices
 lsblk
 
 # Example output:
-# NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
-# sda      8:0    0   1.8T  0 disk           <- Your 2TB SSD
-# sdb      8:16   0 465.8G  0 disk           <- Your 500GB HDD
-# mmcblk0  179:0  0  59.6G  0 disk           <- Your 64GB eMMC (OS)
-# ├─mmcblk0p1 179:1  0     1G  0 part /boot/efi
-# └─mmcblk0p2 179:2  0  58.6G  0 part /
+# NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+# sda           8:0    0   1.8T  0 disk           <- Your 2TB SSD
+# sdb           8:16   0 465.8G  0 disk           <- Your 500GB HDD
+# mmcblk0     179:0    0  59.6G  0 disk           <- Your 64GB eMMC (OS)
+# ├─mmcblk0p1 179:1    0     1G  0 part /boot/efi
+# └─mmcblk0p2 179:2    0  58.6G  0 part /
 
 # Check if drives are already formatted
 sudo fdisk -l /dev/sda
 sudo fdisk -l /dev/sdb
 ```
 
-#### Format the Drives (CAUTION: This erases all data!)
+#### 1.3.2: Format the Drives (CAUTION: This erases all data!)
 
 **⚠️ WARNING**: The following commands will **ERASE ALL DATA** on the specified drives. Make sure you have the correct device names!
 
@@ -171,18 +212,18 @@ sudo parted /dev/sdb --script mkpart primary ext4 0% 100%
 sudo mkfs.ext4 -F /dev/sdb1 -L "HDD-Cache"
 ```
 
-#### Create Mount Points
+#### 1.3.3: Create Mount Points
 
 ```bash
 # Create mount point directories
 sudo mkdir -p /mnt/ssd
 sudo mkdir -p /mnt/hdd
 
-# Set ownership
+# Set ownership to your user
 sudo chown -R $USER:$USER /mnt/ssd /mnt/hdd
 ```
 
-#### Configure Automatic Mounting (fstab)
+#### 1.3.4: Configure Automatic Mounting (fstab)
 
 Get the UUIDs of your new partitions:
 
@@ -208,8 +249,17 @@ Add these lines at the end (replace UUIDs with your actual values):
 # 2TB SSD for data storage
 UUID=abc12345-6789-your-actual-uuid-here  /mnt/ssd  ext4  defaults,nofail  0  2
 
-# 500GB HDD for cache storage
+# 500GB HDD for cache storage  
 UUID=def67890-1234-your-actual-uuid-here  /mnt/hdd  ext4  defaults,nofail  0  2
+```
+
+**eMMC Optimization - Reduce Commit Interval (Optional):**
+
+Add `commit=60` to reduce write frequency:
+
+```
+UUID=abc12345-6789-your-actual-uuid-here  /mnt/ssd  ext4  defaults,nofail,commit=60  0  2
+UUID=def67890-1234-your-actual-uuid-here  /mnt/hdd  ext4  defaults,nofail,commit=60  0  2
 ```
 
 Mount the drives and verify:
@@ -226,7 +276,7 @@ df -h | grep mnt
 # /dev/sdb1       458G   24K  435G   1% /mnt/hdd
 ```
 
-#### Create Service Data Directories
+#### 1.3.5: Create Service Data Directories
 
 ```bash
 # Create directories for services
@@ -240,13 +290,47 @@ sudo chmod -R 777 /mnt/hdd/lancache
 sudo chmod -R 777 /mnt/hdd/lancache-logs
 ```
 
----
+#### 1.3.6: Move Docker to SSD (eMMC Optimization)
 
-## 🚀 Part 2: Automated Deployment
+**Optional but highly recommended to preserve eMMC:**
 
-Now that your ZimaBoard is prepared, deploy the homelab services.
+```bash
+# Stop Docker
+sudo systemctl stop docker
 
-### Step 1: Clone the Repository
+# Create Docker directory on SSD
+sudo mkdir -p /mnt/ssd/docker
+
+# Edit Docker daemon configuration
+sudo nano /etc/docker/daemon.json
+```
+
+Add this content:
+
+```json
+{
+  "data-root": "/mnt/ssd/docker"
+}
+```
+
+Continue:
+
+```bash
+# Copy existing Docker data (if any)
+sudo rsync -aP /var/lib/docker/ /mnt/ssd/docker/
+
+# Restart Docker
+sudo systemctl start docker
+
+# Verify new location
+docker info | grep "Docker Root Dir"
+# Should show: Docker Root Dir: /mnt/ssd/docker
+
+# Remove old Docker data (after verifying everything works)
+# sudo rm -rf /var/lib/docker
+```
+
+### Step 1.4: Clone the Repository
 
 ```bash
 # Navigate to home directory
@@ -257,9 +341,81 @@ git clone https://github.com/th3cavalry/zimaboard-2-home-lab.git
 cd zimaboard-2-home-lab
 ```
 
-### Step 2: Configure Environment Variables
+**✅ Host Preparation Complete!**
+
+You are now ready to choose your installation path.
+
+---
+
+## 🛤️ Section 2: Choose Your Installation Path
+
+You now have a choice between two installation approaches:
+
+### Path A: Fully Containerized (Docker) ⭐ **RECOMMENDED**
+
+**What it is**: All services (AdGuard Home, Lancache, Samba) run in Docker containers.
+
+**Pros:**
+- ✅ **Simplest setup**: Single `docker compose up -d` command
+- ✅ **Easy updates**: Pull new images and restart containers
+- ✅ **Better isolation**: Each service in its own container
+- ✅ **Easier troubleshooting**: Clear separation of concerns
+- ✅ **Portable**: Move to different hardware easily
+- ✅ **Recommended for beginners**: Less manual configuration
+
+**Cons:**
+- ⚠️ Slightly more resource overhead (minimal on 16GB RAM)
+- ⚠️ May have tiny performance penalty for Samba (usually unnoticeable)
+
+**Who should choose Path A:**
+- First-time homelab users
+- Users who want simple, stable, reproducible setups
+- Users who value ease of maintenance over maximum performance
+- Users who want to easily enable/disable services
+
+**Continue to**: [Section 3: Path A - Fully Containerized Guide](#-section-3-path-a---fully-containerized-guide)
+
+---
+
+### Path B: Bare-Metal/Hybrid
+
+**What it is**: AdGuard Home and Samba run directly on the host OS. Lancache and optional services run in Docker (hybrid approach).
+
+**Why hybrid?** Lancache is a complex multi-container system that's impractical to install bare-metal. Running it in Docker is actually the recommended approach even for bare-metal setups.
+
+**Pros:**
+- ✅ **Maximum performance**: Native Samba has best file I/O
+- ✅ **Better host integration**: Services use systemd directly
+- ✅ **Learning opportunity**: Understand how services work
+- ✅ **Flexibility**: Full control over service configuration
+
+**Cons:**
+- ⚠️ **More complex setup**: Requires manual installation steps
+- ⚠️ **Harder to maintain**: Updates require manual intervention
+- ⚠️ **Harder to troubleshoot**: Services integrated with host OS
+- ⚠️ **Less portable**: Harder to migrate to new hardware
+- ⚠️ **More manual configuration**: Edit config files directly
+
+**Who should choose Path B:**
+- Advanced users comfortable with Linux system administration
+- Users who need absolute maximum Samba performance
+- Users who want to learn system-level service management
+- Users with specific customization needs
+
+**Continue to**: [Section 4: Path B - Bare-Metal/Hybrid Guide](#-section-4-path-b---bare-metalhybrid-guide)
+
+---
+
+## 🐳 Section 3: Path A - Fully Containerized Guide
+
+**Prerequisites**: You must have completed [Section 1: Host Preparation](#-section-1-host-preparation-common-to-both-paths)
+
+### Step 3.1: Configure Environment Variables
 
 ```bash
+# Make sure you're in the repository directory
+cd ~/zimaboard-2-home-lab
+
 # Copy the example environment file
 cp .env.example .env
 
@@ -278,7 +434,7 @@ SERVER_IP=192.168.8.2
 # Your timezone (find yours at: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 TIMEZONE=America/New_York
 
-# Storage paths (should match what you created)
+# Storage paths (should match what you created in Section 1)
 DATA_PATH_SSD=/mnt/ssd
 DATA_PATH_HDD=/mnt/hdd
 
@@ -288,7 +444,7 @@ LANCACHE_MAX_SIZE=400
 
 Save and exit (Ctrl+X, then Y, then Enter).
 
-### Step 3: Deploy Services
+### Step 3.2: Deploy All Services
 
 ```bash
 # Start all services
@@ -310,7 +466,7 @@ lancache            lancachenet/monolithic:latest      Up 10 seconds
 samba               dperson/samba:latest               Up 10 seconds
 ```
 
-### Step 4: Verify Service Health
+### Step 3.3: Verify Service Health
 
 ```bash
 # Check AdGuard Home
@@ -325,13 +481,127 @@ docker compose logs samba
 docker stats --no-stream
 ```
 
+**✅ Path A Deployment Complete!**
+
+Continue to [Section 5: Post-Installation Configuration](#️-section-5-post-installation-configuration-common-to-both-paths) for next steps.
+
 ---
 
-## ⚙️ Part 3: Post-Install Configuration
+## 🔧 Section 4: Path B - Bare-Metal/Hybrid Guide
 
-### AdGuard Home Setup
+**Prerequisites**: You must have completed [Section 1: Host Preparation](#-section-1-host-preparation-common-to-both-paths)
 
-#### Access the Web Interface
+### ⚠️ Understanding the Hybrid Approach
+
+Path B is called "Bare-Metal/Hybrid" because:
+
+- **Bare-Metal**: AdGuard Home and Samba are installed directly on the host OS
+- **Hybrid**: Lancache and optional services run in Docker containers
+
+**Why not pure bare-metal?**
+
+Lancache is actually a collection of Docker containers (monolithic image, DNS server, etc.) designed to work together. Installing it bare-metal would require manually setting up nginx with custom configurations, DNS proxy servers, and complex caching logic. The official Lancache project **recommends** using their Docker images even for "bare-metal" setups.
+
+### Step 4.1: Run the Bare-Metal Installation Script
+
+```bash
+# Navigate to the bare-metal directory
+cd ~/zimaboard-2-home-lab/bare-metal
+
+# Run the installation script
+sudo bash install.sh
+```
+
+The script will:
+1. Install AdGuard Home using the official installation script
+2. Install Samba via `apt`
+3. Copy the pre-configured `smb.conf` from `configs/samba/smb.conf`
+4. Enable and start services (AdGuardHome, smbd, nmbd)
+5. Optionally create a Samba user for authenticated access
+
+**Follow the prompts** in the installation script.
+
+### Step 4.2: Configure Docker Hybrid Services
+
+After the bare-metal installation completes, configure the Docker services:
+
+```bash
+# Make sure you're in the bare-metal directory
+cd ~/zimaboard-2-home-lab/bare-metal
+
+# Copy the hybrid environment file
+cp .env.hybrid.example .env.hybrid
+
+# Edit the configuration
+nano .env.hybrid
+```
+
+**Required Configuration Changes:**
+
+```bash
+# Your ZimaBoard's IP address
+SERVER_IP=192.168.8.2
+
+# Your timezone
+TIMEZONE=America/New_York
+
+# HDD path for Lancache (SSD path is already configured in Samba)
+DATA_PATH_HDD=/mnt/hdd
+
+# Optional: Adjust cache size
+LANCACHE_MAX_SIZE=400
+```
+
+Save and exit.
+
+### Step 4.3: Deploy Hybrid Docker Services
+
+```bash
+# Start Lancache and optional services
+docker compose -f docker-compose.hybrid.yml --env-file .env.hybrid up -d
+
+# Verify services are running
+docker compose -f docker-compose.hybrid.yml ps
+
+# View logs
+docker compose -f docker-compose.hybrid.yml logs -f
+```
+
+**Expected Output:**
+
+```
+NAME                IMAGE                              STATUS
+lancache            lancachenet/monolithic:latest      Up 10 seconds
+```
+
+### Step 4.4: Verify Services
+
+```bash
+# Check AdGuard Home (bare-metal)
+sudo systemctl status AdGuardHome
+curl http://192.168.8.2:3000
+
+# Check Samba (bare-metal)
+sudo systemctl status smbd nmbd
+smbclient -L localhost -N
+
+# Check Lancache (Docker)
+docker compose -f docker-compose.hybrid.yml logs lancache
+```
+
+**✅ Path B Deployment Complete!**
+
+Continue to [Section 5: Post-Installation Configuration](#️-section-5-post-installation-configuration-common-to-both-paths) for next steps.
+
+---
+
+## ⚙️ Section 5: Post-Installation Configuration (Common to Both Paths)
+
+These steps apply to **both Path A and Path B** after deployment.
+
+### Step 5.1: Configure AdGuard Home
+
+#### Initial Setup Wizard
 
 1. Open your web browser
 2. Navigate to: `http://192.168.8.2:3000`
@@ -343,16 +613,17 @@ docker stats --no-stream
 
 #### Configure Upstream DNS
 
-1. Go to **Settings → DNS settings**
-2. In the "Upstream DNS servers" field, add:
+1. Log into AdGuard Home dashboard
+2. Go to **Settings → DNS settings**
+3. In the "Upstream DNS servers" field, add:
    ```
    1.1.1.1
    1.0.0.1
    8.8.8.8
    8.8.4.4
    ```
-3. Enable "Parallel requests" for faster resolution
-4. Click "Save"
+4. Enable "Parallel requests" for faster resolution
+5. Click "Save"
 
 #### Add DNS Blocklists
 
@@ -377,18 +648,25 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 #### 🎬 Attempting to Block Streaming Ads
 
-**⚠️ IMPORTANT WARNING ABOUT STREAMING AD BLOCKING:**
+**⚠️⚠️⚠️ CRITICAL WARNING ABOUT STREAMING AD BLOCKING ⚠️⚠️⚠️**
 
-Blocking ads on streaming services (Netflix, Hulu, HBO Max, Peacock, YouTube, etc.) is **extremely difficult and unreliable**. Here's why:
+Blocking ads on streaming services (Netflix, Hulu, HBO Max, Peacock, YouTube, etc.) is **EXTREMELY DIFFICULT AND UNRELIABLE**. Here's why:
 
 - **Same-Domain Serving**: Streaming services intentionally serve ads from the same domains as content
 - **Active Countermeasures**: Services actively detect and circumvent ad blocking
 - **Frequent Changes**: Ad delivery methods change constantly
-- **Potential Breakage**: Blocking attempts can break video playback entirely
+- **Potential Breakage**: Blocking attempts **WILL BREAK** video playback entirely
 - **App vs Browser**: Mobile apps are harder to block than web browsers
-- **Limited Effectiveness**: Even with the best filters, success rates are 20-40% at best
+- **Limited Effectiveness**: Even with the best filters, success rates are **20-40% at best**
+- **Terms of Service**: May violate service terms and risk account suspension
 
-**If you still want to try:**
+**The Reality:**
+- YouTube ads: Very difficult, often breaks playback
+- Netflix ads: Nearly impossible without breaking service
+- Hulu ads: Extremely difficult, high breakage risk
+- Cable/Live TV apps: Almost never works
+
+**If you still want to try (at your own risk):**
 
 1. Go to **Filters → DNS blocklists** → "Add blocklist"
 2. Add these **experimental** lists:
@@ -400,7 +678,7 @@ https://blocklistproject.github.io/Lists/ads.txt
 ```
 
 3. Go to **Filters → Custom filtering rules**
-4. Add these regex patterns (use with caution):
+4. Add these regex patterns (**use with extreme caution**):
 
 ```
 ||doubleclick.net^
@@ -410,22 +688,23 @@ https://blocklistproject.github.io/Lists/ads.txt
 ||youtube.com/ptracking^
 ```
 
-**Recommended Approach:**
+**Recommended Approach Instead:**
 
-Instead of relying solely on DNS blocking for streaming ads:
-- Use browser extensions like uBlock Origin for web-based streaming
-- Consider YouTube Premium for ad-free YouTube
-- Use Pi-hole's Regex blocking as a secondary layer
-- Accept that some ads will get through
+- Use browser extensions like **uBlock Origin** for web-based streaming
+- Consider **YouTube Premium** for ad-free YouTube
+- Accept that DNS-level blocking **cannot** effectively block streaming ads
+- Focus on blocking tracking and malware instead
 
 **If streaming services break:**
 1. Go to **Settings → DNS settings**
 2. Add the broken domain to the "DNS allowlist"
-3. Or temporarily disable AdGuard Home: `docker compose stop adguardhome`
+3. Or temporarily disable AdGuard Home:
+   - **Path A**: `docker compose stop adguardhome`
+   - **Path B**: `sudo systemctl stop AdGuardHome`
 
-### Lancache Integration with AdGuard Home
+### Step 5.2: Configure Lancache Integration with AdGuard Home
 
-Lancache works by intercepting requests for game content and serving them from your local cache. You need to configure DNS rewrites in AdGuard Home to redirect gaming traffic to Lancache.
+Lancache works by intercepting requests for game content and serving them from your local cache. You need to configure DNS rewrites in AdGuard Home.
 
 #### Configure DNS Rewrites
 
@@ -475,22 +754,25 @@ Domain: *.windowsupdate.com
 Answer: 192.168.8.2
 ```
 
-**Note:** Make sure to use your actual ZimaBoard IP (192.168.8.2) in the "Answer" field.
+**Note:** Replace `192.168.8.2` with your actual ZimaBoard IP if different.
 
 #### Verify Lancache is Working
 
 After configuring DNS rewrites:
 
 ```bash
-# Check Lancache logs
+# For Path A:
 docker compose logs -f lancache
 
+# For Path B:
+docker compose -f bare-metal/docker-compose.hybrid.yml logs -f lancache
+
 # When downloading a game, you should see cache HIT/MISS entries
-# First download: MISS (cached)
+# First download: MISS (content is being cached)
 # Subsequent downloads: HIT (served from cache)
 ```
 
-### Router Configuration (GL.iNet x3000)
+### Step 5.3: Configure Your Router (GL.iNet x3000)
 
 Configure your router to use AdGuard Home as the DNS server for all devices:
 
@@ -508,7 +790,7 @@ Configure your router to use AdGuard Home as the DNS server for all devices:
    - Click "Save" or "Apply"
 
 4. **Renew DHCP on client devices**:
-   - **Windows**: `ipconfig /release && ipconfig /renew`
+   - **Windows**: Open CMD as admin: `ipconfig /release && ipconfig /renew`
    - **macOS**: System Preferences → Network → Advanced → TCP/IP → Renew DHCP Lease
    - **Linux**: `sudo dhclient -r && sudo dhclient`
    - **Mobile**: Turn WiFi off and back on
@@ -517,23 +799,25 @@ Configure your router to use AdGuard Home as the DNS server for all devices:
    - On a client device, open browser
    - Go to: `http://192.168.8.2:3000`
    - Check AdGuard Home dashboard for queries
+   - Try visiting a known ad-heavy website
 
-### Samba File Share Access
+### Step 5.4: Access Samba File Share
 
-#### Access from Windows
+#### From Windows
 
 1. Open **File Explorer**
 2. In the address bar, type: `\\192.168.8.2\Shared`
 3. Press Enter
-4. The shared folder should open (guest access enabled)
-5. To map as network drive:
-   - Right-click on "This PC" → "Map network drive"
-   - Drive letter: Choose available letter (e.g., Z:)
-   - Folder: `\\192.168.8.2\Shared`
-   - Check "Reconnect at sign-in"
-   - Click "Finish"
+4. The shared folder should open (guest access enabled by default)
 
-#### Access from macOS
+**To map as network drive:**
+- Right-click on "This PC" → "Map network drive"
+- Drive letter: Choose available letter (e.g., Z:)
+- Folder: `\\192.168.8.2\Shared`
+- Check "Reconnect at sign-in"
+- Click "Finish"
+
+#### From macOS
 
 1. Open **Finder**
 2. Press `Cmd + K` (or Go → Connect to Server)
@@ -542,7 +826,7 @@ Configure your router to use AdGuard Home as the DNS server for all devices:
 5. Select "Guest" (or enter credentials if configured)
 6. The shared folder will appear in Finder
 
-#### Access from Linux
+#### From Linux
 
 **Temporary Mount:**
 ```bash
@@ -571,26 +855,31 @@ Then mount:
 sudo mount -a
 ```
 
+**✅ Post-Installation Configuration Complete!**
+
+Your homelab is now fully operational!
+
 ---
 
-## 🔧 Part 4: Optional Services
+## 🔧 Section 6: How to Enable Optional Services
 
-### Uptime Kuma (Network Monitoring)
+Both installation paths support optional services: **Uptime Kuma** (monitoring) and **CrowdSec** (security).
 
-Uptime Kuma provides a beautiful dashboard to monitor all your services.
+### For Path A (Fully Containerized)
 
 #### Enable Uptime Kuma
 
 1. Edit `docker-compose.yml`:
    ```bash
+   cd ~/zimaboard-2-home-lab
    nano docker-compose.yml
    ```
 
-2. Find the commented-out `uptime-kuma` section (around line 175)
+2. Find the commented-out `uptime-kuma` section (around line 158)
 
 3. Uncomment the entire section:
    - Remove the `#` from the beginning of each line in the section
-   - Be careful to maintain proper indentation
+   - Be careful to maintain proper indentation (YAML is sensitive to indentation)
 
 4. Save and exit (Ctrl+X, Y, Enter)
 
@@ -609,17 +898,12 @@ Uptime Kuma provides a beautiful dashboard to monitor all your services.
    - Create admin account
    - Add monitors for your services
 
-#### Example Monitors to Add
-
+**Example Monitors to Add:**
 - **AdGuard Home**: HTTP(s) monitor to `http://192.168.8.2:3000`
 - **Samba Share**: Ping monitor to `192.168.8.2` port 445
-- **Lancache**: HTTP(s) monitor to `http://192.168.8.2:8080`
+- **Lancache**: HTTP(s) monitor to `http://192.168.8.2:80`
 - **Router**: Ping monitor to `192.168.8.1`
 - **Internet**: Ping monitor to `8.8.8.8`
-
-### CrowdSec (Intrusion Prevention)
-
-CrowdSec is a modern, collaborative IPS that protects your services.
 
 #### Enable CrowdSec
 
@@ -628,11 +912,9 @@ CrowdSec is a modern, collaborative IPS that protects your services.
    nano docker-compose.yml
    ```
 
-2. Find the commented-out `crowdsec` section (around line 210)
+2. Find the commented-out `crowdsec` section (around line 189)
 
-3. Uncomment the entire section:
-   - Remove the `#` from the beginning of each line
-   - Maintain proper indentation
+3. Uncomment the entire section (remove `#` from each line)
 
 4. Save and exit
 
@@ -663,13 +945,73 @@ CrowdSec is a modern, collaborative IPS that protects your services.
    docker compose exec crowdsec cscli metrics
    ```
 
+### For Path B (Bare-Metal/Hybrid)
+
+#### Enable Uptime Kuma
+
+1. Edit `docker-compose.hybrid.yml`:
+   ```bash
+   cd ~/zimaboard-2-home-lab/bare-metal
+   nano docker-compose.hybrid.yml
+   ```
+
+2. Find the commented-out `uptime-kuma` section
+
+3. Uncomment the entire section (remove `#` from each line)
+
+4. Save and exit
+
+5. Create data directory:
+   ```bash
+   mkdir -p ./data/uptime-kuma
+   ```
+
+6. Restart services:
+   ```bash
+   docker compose -f docker-compose.hybrid.yml --env-file .env.hybrid up -d
+   ```
+
+7. Access Uptime Kuma:
+   - Open browser: `http://192.168.8.2:3001`
+   - Create admin account
+   - Add monitors
+
+#### Enable CrowdSec
+
+1. Edit `docker-compose.hybrid.yml`:
+   ```bash
+   nano docker-compose.hybrid.yml
+   ```
+
+2. Find the commented-out `crowdsec` section
+
+3. Uncomment the entire section
+
+4. Save and exit
+
+5. Create data directories:
+   ```bash
+   mkdir -p ./data/crowdsec/config
+   mkdir -p ./data/crowdsec/data
+   ```
+
+6. Deploy:
+   ```bash
+   docker compose -f docker-compose.hybrid.yml --env-file .env.hybrid up -d
+   ```
+
+7. Configure as shown above for Path A
+
 ---
 
 ## 🔍 Monitoring and Maintenance
 
 ### View Service Status
 
+**For Path A:**
 ```bash
+cd ~/zimaboard-2-home-lab
+
 # Check all services
 docker compose ps
 
@@ -685,9 +1027,24 @@ docker compose logs -f lancache
 docker compose logs -f samba
 ```
 
+**For Path B:**
+```bash
+# Check bare-metal services
+sudo systemctl status AdGuardHome
+sudo systemctl status smbd nmbd
+
+# Check Docker services
+cd ~/zimaboard-2-home-lab/bare-metal
+docker compose -f docker-compose.hybrid.yml ps
+docker compose -f docker-compose.hybrid.yml logs -f lancache
+```
+
 ### Update Services
 
+**For Path A:**
 ```bash
+cd ~/zimaboard-2-home-lab
+
 # Pull latest images
 docker compose pull
 
@@ -698,9 +1055,27 @@ docker compose up -d
 docker image prune -f
 ```
 
+**For Path B:**
+```bash
+# Update bare-metal services
+sudo apt update && sudo apt upgrade -y
+
+# Update AdGuard Home
+# Visit https://github.com/AdguardTeam/AdGuardHome/releases for instructions
+
+# Update Docker services
+cd ~/zimaboard-2-home-lab/bare-metal
+docker compose -f docker-compose.hybrid.yml pull
+docker compose -f docker-compose.hybrid.yml up -d
+docker image prune -f
+```
+
 ### Backup Configuration
 
+**For Path A:**
 ```bash
+cd ~/zimaboard-2-home-lab
+
 # Backup all configurations
 tar -czf homelab-backup-$(date +%Y%m%d).tar.gz \
   .env \
@@ -711,6 +1086,17 @@ tar -czf homelab-backup-$(date +%Y%m%d).tar.gz \
 
 # Restore from backup
 tar -xzf homelab-backup-YYYYMMDD.tar.gz
+```
+
+**For Path B:**
+```bash
+# Backup bare-metal configurations
+sudo tar -czf baremet-backup-$(date +%Y%m%d).tar.gz \
+  /etc/samba/smb.conf \
+  /opt/AdGuardHome/AdGuardHome.yaml \
+  ~/zimaboard-2-home-lab/bare-metal/
+
+# Restore as needed
 ```
 
 ### Check Disk Usage
@@ -734,6 +1120,7 @@ du -sh /mnt/hdd/lancache
 
 #### AdGuard Home Not Blocking
 
+**Path A:**
 ```bash
 # Check if service is running
 docker compose ps adguardhome
@@ -749,11 +1136,31 @@ nslookup doubleclick.net 192.168.8.2
 # Should return 0.0.0.0 if blocked
 ```
 
+**Path B:**
+```bash
+# Check if service is running
+sudo systemctl status AdGuardHome
+
+# Check logs
+sudo journalctl -u AdGuardHome -n 50
+
+# Restart service
+sudo systemctl restart AdGuardHome
+
+# Test DNS
+nslookup doubleclick.net 192.168.8.2
+```
+
 #### Lancache Not Caching
 
 ```bash
-# Check Lancache logs
+# Check Lancache logs (both paths)
+# Path A:
 docker compose logs lancache | grep -i "cache"
+
+# Path B:
+cd ~/zimaboard-2-home-lab/bare-metal
+docker compose -f docker-compose.hybrid.yml logs lancache | grep -i "cache"
 
 # Verify DNS rewrites are configured in AdGuard Home
 # Test resolution
@@ -766,6 +1173,7 @@ ls -la /mnt/hdd/lancache
 
 #### Samba Share Not Accessible
 
+**Path A:**
 ```bash
 # Check if service is running
 docker compose ps samba
@@ -780,6 +1188,25 @@ smbclient -L localhost -N
 ls -la /mnt/ssd/fileshare
 ```
 
+**Path B:**
+```bash
+# Check if service is running
+sudo systemctl status smbd nmbd
+
+# Check logs
+sudo journalctl -u smbd -n 50
+sudo journalctl -u nmbd -n 50
+
+# Test Samba configuration
+testparm
+
+# Test connection
+smbclient -L localhost -N
+
+# Check permissions
+ls -la /mnt/ssd/fileshare
+```
+
 #### Out of Disk Space
 
 ```bash
@@ -787,9 +1214,16 @@ ls -la /mnt/ssd/fileshare
 df -h
 
 # Clear Lancache if needed
+# Path A:
 docker compose stop lancache
 sudo rm -rf /mnt/hdd/lancache/*
 docker compose start lancache
+
+# Path B:
+cd ~/zimaboard-2-home-lab/bare-metal
+docker compose -f docker-compose.hybrid.yml stop lancache
+sudo rm -rf /mnt/hdd/lancache/*
+docker compose -f docker-compose.hybrid.yml start lancache
 
 # Prune Docker resources
 docker system prune -a --volumes
