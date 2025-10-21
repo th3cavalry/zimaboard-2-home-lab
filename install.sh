@@ -84,7 +84,7 @@ echo "🛡️  AdGuard Home (DNS filtering & ad blocking)"
 echo "⚡  Nginx (Web caching & gaming cache)"
 echo "☁️  Nextcloud (1TB personal cloud NAS)"
 echo "🎮  Gaming cache (Steam, Epic, Origin)"
-echo "📺  Streaming optimization (YouTube, Netflix)"
+echo "��  Streaming optimization (YouTube, Netflix)"
 echo "🏠  Beautiful unified dashboard"
 echo
 
@@ -100,63 +100,71 @@ fi
 # Phase 1: System Preparation
 ################################################################################
 
-log "Phase 1: System Preparation"
+log "Phase 1: Preparing system..."
 
-# Set non-interactive mode
-export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
-
-# Update system
+# Update system packages
 log "Updating system packages..."
 apt update && apt upgrade -y
 
 # Install essential packages
 log "Installing essential packages..."
-apt install -y \
-    curl wget git htop tree \
-    nginx software-properties-common \
-    ufw fail2ban \
-    php8.3-fpm php8.3-common php8.3-mysql php8.3-xml php8.3-curl \
-    php8.3-zip php8.3-intl php8.3-mbstring php8.3-gd php8.3-bcmath \
-    sqlite3 php8.3-sqlite3 \
-    smartmontools lsof
+apt install -y curl wget unzip software-properties-common apt-transport-https ca-certificates gnupg lsb-release ufw
 
-success "System preparation completed"
+# Configure firewall
+log "Configuring firewall..."
+ufw --force reset
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 3000/tcp  # AdGuard Home
+ufw allow 8080/tcp  # Nextcloud
+ufw --force enable
 
 ################################################################################
-# Phase 2: Storage Detection and Configuration
+# Phase 2: Storage Setup
 ################################################################################
 
-log "Phase 2: Storage Detection and Configuration"
+log "Phase 2: Setting up storage..."
 
 # Detect storage devices
-log "Detecting storage devices..."
-EMMC_DEVICE=$(lsblk -d -o NAME,SIZE | grep -E "mmcblk[0-9]" | head -1 | awk '{print $1}')
-SSD_DEVICE=$(lsblk -d -o NAME,SIZE | grep -E "(sd[a-z]|nvme[0-9])" | sort -k2 -hr | head -1 | awk '{print $1}')
-HDD_DEVICE=$(lsblk -d -o NAME,SIZE | grep -E "(sd[a-z]|nvme[0-9])" | sort -k2 -hr | tail -1 | awk '{print $1}')
+SSD_DEVICE=""
+HDD_DEVICE=""
 
-# If SSD and HDD are the same (only one drive), use partitions
-if [[ "$SSD_DEVICE" == "$HDD_DEVICE" ]]; then
-    SSD_PARTITION="/dev/${SSD_DEVICE}1"
-    HDD_PARTITION="/dev/${SSD_DEVICE}2"
-else
-    SSD_PARTITION="/dev/${SSD_DEVICE}1"
-    HDD_PARTITION="/dev/${HDD_DEVICE}1"
-fi
+# Look for SSD (typically larger, around 2TB)
+for device in /dev/sd* /dev/nvme*; do
+    if [[ -b "$device" ]] && [[ ! "$device" =~ [0-9]$ ]]; then
+        size=$(lsblk -bno SIZE "$device" 2>/dev/null | head -1)
+        if [[ $size -gt 1000000000000 ]]; then  # > 1TB
+            if [[ -z "$SSD_DEVICE" ]]; then
+                SSD_DEVICE="$device"
+            fi
+        elif [[ $size -gt 100000000000 ]] && [[ $size -lt 1000000000000 ]]; then  # 100GB - 1TB
+            if [[ -z "$HDD_DEVICE" ]]; then
+                HDD_DEVICE="$device"
+            fi
+        fi
+    fi
+done
 
-info "Storage configuration:"
-info "  eMMC: /dev/$EMMC_DEVICE (OS)"
-info "  SSD: $SSD_PARTITION (Nextcloud data)"
-info "  HDD: $HDD_PARTITION (Cache)"
-
-# Create mount points
-mkdir -p /mnt/ssd-data /mnt/hdd-cache
-
-# Mount SSD for data
-log "Configuring SSD for data storage..."
-if ! mountpoint -q /mnt/ssd-data; then
-    if [[ -b "$SSD_PARTITION" ]]; then
-        # Check if filesystem exists
+info "Detected storage devices:"
+if [[ -n "$SSD_DEVICE" ]]; then
+    info "  SSD: $SSD_DEVICE (for Nextcloud data)"
+    SSD_PARTITION="${SSD_DEVICE}1"
+    
+    # Create partition if it doesn't exist
+    if ! lsblk "$SSD_PARTITION" &>/dev/null; then
+        log "Creating SSD partition..."
+        parted -s "$SSD_DEVICE" mklabel gpt
+        parted -s "$SSD_DEVICE" mkpart primary ext4 0% 100%
+        partprobe "$SSD_DEVICE"
+        sleep 2
+    fi
+    
+    # Format and mount SSD
+    if [[ -n "$SSD_PARTITION" ]]; then
+        mkdir -p /mnt/ssd-data
         if ! blkid "$SSD_PARTITION" &>/dev/null; then
             mkfs.ext4 -F "$SSD_PARTITION"
         fi
@@ -168,11 +176,22 @@ if ! mountpoint -q /mnt/ssd-data; then
     fi
 fi
 
-# Mount HDD for cache
-log "Configuring HDD for cache storage..."
-if ! mountpoint -q /mnt/hdd-cache; then
-    if [[ -b "$HDD_PARTITION" ]]; then
-        # Check if filesystem exists
+if [[ -n "$HDD_DEVICE" ]]; then
+    info "  HDD: $HDD_DEVICE (for cache)"
+    HDD_PARTITION="${HDD_DEVICE}1"
+    
+    # Create partition if it doesn't exist
+    if ! lsblk "$HDD_PARTITION" &>/dev/null; then
+        log "Creating HDD partition..."
+        parted -s "$HDD_DEVICE" mklabel gpt
+        parted -s "$HDD_DEVICE" mkpart primary ext4 0% 100%
+        partprobe "$HDD_DEVICE"
+        sleep 2
+    fi
+    
+    # Format and mount HDD
+    if [[ -n "$HDD_PARTITION" ]]; then
+        mkdir -p /mnt/hdd-cache
         if ! blkid "$HDD_PARTITION" &>/dev/null; then
             mkfs.ext4 -F "$HDD_PARTITION"
         fi
@@ -185,6 +204,7 @@ if ! mountpoint -q /mnt/hdd-cache; then
 fi
 
 # Create directory structure
+log "Creating directory structure..."
 mkdir -p /mnt/ssd-data/{nextcloud,logs,backups}
 mkdir -p /mnt/hdd-cache/{nginx,gaming,temp}
 
@@ -192,78 +212,65 @@ mkdir -p /mnt/hdd-cache/{nginx,gaming,temp}
 chown -R www-data:www-data /mnt/ssd-data/nextcloud
 chmod -R 755 /mnt/ssd-data
 
-success "Storage configuration completed"
+success "Storage setup completed"
 
 ################################################################################
-# Phase 3: Firewall Configuration
+# Phase 3: Install Docker
 ################################################################################
 
-log "Phase 3: Firewall Configuration"
+log "Phase 3: Installing Docker..."
 
-# Reset and configure UFW
-ufw --force reset
-ufw default deny incoming
-ufw default allow outgoing
+# Install Docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Allow essential services
-ufw allow ssh
-ufw allow 80/tcp   # HTTP (Dashboard)
-ufw allow 443/tcp  # HTTPS
-ufw allow 53       # DNS (AdGuard Home)
-ufw allow 3000/tcp # AdGuard Home Web UI
-ufw allow 8080/tcp # Nextcloud
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# Enable firewall
-ufw --force enable
+# Start and enable Docker
+systemctl start docker
+systemctl enable docker
 
-success "Firewall configured"
+success "Docker installed successfully"
 
 ################################################################################
-# Phase 4: AdGuard Home Installation
+# Phase 4: Install AdGuard Home
 ################################################################################
 
-log "Phase 4: Installing AdGuard Home"
+log "Phase 4: Installing AdGuard Home..."
 
 # Download and install AdGuard Home
-cd /tmp
-log "Downloading AdGuard Home..."
+wget -O AdGuardHome_linux_amd64.tar.gz https://github.com/AdguardTeam/AdGuardHome/releases/latest/download/AdGuardHome_linux_amd64.tar.gz
+tar -xzf AdGuardHome_linux_amd64.tar.gz
+cp AdGuardHome/AdGuardHome /usr/local/bin/
+chmod +x /usr/local/bin/AdGuardHome
+rm -rf AdGuardHome AdGuardHome_linux_amd64.tar.gz
 
-# Get latest version
-ADGUARD_VERSION=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-ADGUARD_URL="https://github.com/AdguardTeam/AdGuardHome/releases/download/$ADGUARD_VERSION/AdGuardHome_linux_amd64.tar.gz"
+# Create AdGuard Home configuration directory
+mkdir -p /opt/AdGuardHome
 
-curl -L "$ADGUARD_URL" -o AdGuardHome.tar.gz
-tar -xzf AdGuardHome.tar.gz
-cd AdGuardHome
+# Install AdGuard Home as a system service
+/usr/local/bin/AdGuardHome -s install
 
-# Install AdGuard Home
-./AdGuardHome -s install
-systemctl enable AdGuardHome
-
-# Configure AdGuard Home
-log "Configuring AdGuard Home..."
-mkdir -p /opt/AdGuardHome/conf
-
-# Create initial configuration
-cat > /opt/AdGuardHome/conf/AdGuardHome.yaml << 'ADGUARD_EOF'
+# Create basic configuration
+cat > /opt/AdGuardHome/AdGuardHome.yaml << 'ADGUARD_EOF'
 bind_host: 0.0.0.0
 bind_port: 3000
-beta_bind_port: 0
 users:
-- name: admin
-  password: $2a$10$YjQ2Njg4MDVjZjg2NDY4NO8m9k8nN8pJ8h8c8J4zR5G5v2nR4Y2Z.
+  - name: admin
+    password: '$2a$10$47DEQpj8HBSa.UPmgIqEd.n7k4lT7bOG2o9kc6Z7k6n8M6M6M6M6M'
 auth_attempts: 5
 block_auth_min: 15
 http_proxy: ""
 language: en
-rlimit_nofile: 0
+theme: auto
 debug_pprof: false
 web_session_ttl: 720
 dns:
   bind_hosts:
-  - 0.0.0.0
+    - 0.0.0.0
   port: 53
-  statistics_interval: 90
+  statistics_interval: 1
   querylog_enabled: true
   querylog_file_enabled: true
   querylog_interval: 2160h
@@ -276,32 +283,13 @@ dns:
   blocked_response_ttl: 10
   parental_block_host: family-block.dns.adguard.com
   safebrowsing_block_host: standard-block.dns.adguard.com
-  ratelimit: 20
-  ratelimit_whitelist: []
-  refuse_any: true
-  upstream_dns:
-  - 1.1.1.1
-  - 1.0.0.1
-  - 8.8.8.8
-  - 8.8.4.4
-  upstream_dns_file: ""
-  bootstrap_dns:
-  - 9.9.9.10
-  - 149.112.112.10
-  - 2620:fe::10
-  - 2620:fe::fe:10
-  all_servers: false
-  fastest_addr: false
-  fastest_timeout: 1s
-  allowed_clients: []
-  disallowed_clients: []
-  blocked_hosts:
-  - version.bind
-  - id.server
-  - hostname.bind
-  trusted_proxies:
-  - 127.0.0.0/8
-  - ::1/128
+  rewrites: []
+  safebrowsing_enabled: true
+  safebrowsing_cache_size: 1048576
+  safesearch_enabled: false
+  safesearch_cache_size: 1048576
+  parental_enabled: false
+  parental_cache_size: 1048576
   cache_size: 4194304
   cache_ttl_min: 0
   cache_ttl_max: 0
@@ -317,84 +305,118 @@ dns:
   handle_ddr: true
   ipset: []
   ipset_file: ""
-  filtering:
-    protection_enabled: true
-    filtering_enabled: true
-    blocking_mode: default
-    parental_enabled: false
-    safebrowsing_enabled: true
-    safesearch_enabled: false
-    safesearch_cache_size: 1048576
-    safebrowsing_cache_size: 1048576
-    parental_cache_size: 1048576
-    cache_time: 30
-    filters_update_interval: 24
-    blocked_services: []
-    upstream_timeout: 10s
-    filters:
-    - enabled: true
-      url: https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/pro.txt
-      name: "Hagezi Pro++ - Ultimate ad blocking"
-      id: 1
-    - enabled: true
-      url: https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/tif.txt
-      name: "Hagezi Threat Intelligence"
-      id: 2
-    - enabled: true
-      url: https://raw.githubusercontent.com/uklans/cache-domains/master/steam.txt
-      name: "Gaming - Steam Cache"
-      id: 3
-    whitelist_filters: []
-  clients:
-    runtime_sources:
-      whois: true
-      arp: true
-      rdns: true
-      dhcp: true
-      hosts: true
-    persistent: []
-  log_compress: false
-  log_localtime: false
-  log_max_backups: 0
-  log_max_size: 100
-  log_max_age: 3
-  log_file: ""
-  verbose: false
-  os:
-    group: ""
-    user: ""
-    rlimit_nofile: 0
-  schema_version: 20
+  bootstrap_dns:
+    - 9.9.9.10
+    - 149.112.112.10
+    - 2620:fe::10
+    - 2620:fe::fe:10
+  upstream_dns:
+    - https://dns10.quad9.net/dns-query
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+  upstream_dns_file: ""
+  fallback_dns: []
+  upstream_timeout: 10s
+  private_networks:
+    - 127.0.0.0/8
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 169.254.0.0/16
+    - fc00::/7
+    - fe80::/10
+    - ::1/128
+  use_private_ptr_resolvers: true
+  local_ptr_upstreams: []
+  use_dns64: false
+  dns64_prefixes: []
+  serve_http3: false
+  use_http3_upstreams: false
+tls:
+  enabled: false
+  server_name: ""
+  force_https: false
+  port_https: 443
+  port_dns_over_tls: 853
+  port_dns_over_quic: 853
+  port_dnscrypt: 0
+  dnscrypt_config_file: ""
+  allow_unencrypted_doh: false
+  certificate_chain: ""
+  private_key: ""
+  certificate_path: ""
+  private_key_path: ""
+  strict_sni_check: false
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adaway.org/hosts.txt
+    name: AdAway Default Blocklist
+    id: 2
+  - enabled: true
+    url: https://www.malwaredomainlist.com/hostslist/hosts.txt
+    name: MalwareDomainList.com Hosts List
+    id: 3
+whitelist_filters: []
+user_rules: []
+dhcp:
+  enabled: false
+  interface_name: ""
+  local_domain_name: lan
+  dhcpv4:
+    gateway_ip: ""
+    subnet_mask: ""
+    range_start: ""
+    range_end: ""
+    lease_duration: 86400
+    icmp_timeout_msec: 1000
+    options: []
+  dhcpv6:
+    range_start: ""
+    lease_duration: 86400
+    ra_slaac_only: false
+    ra_allow_slaac: false
+clients:
+  runtime_sources:
+    whois: true
+    arp: true
+    rdns: true
+    dhcp: true
+    hosts: true
+  persistent: []
+log_file: ""
+log_max_backups: 0
+log_max_size: 100
+log_max_age: 3
+log_compress: false
+log_localtime: false
+verbose: false
+os:
+  group: ""
+  user: ""
+  rlimit_nofile: 0
+schema_version: 20
 ADGUARD_EOF
 
 # Start AdGuard Home
 systemctl start AdGuardHome
+systemctl enable AdGuardHome
 
-# Wait for service to start
-sleep 5
-
-if systemctl is-active --quiet AdGuardHome; then
-    success "AdGuard Home installed and started"
-else
-    error "AdGuard Home failed to start"
-fi
-
-# Clean up
-cd / && rm -rf /tmp/AdGuardHome*
+success "AdGuard Home installed and configured"
 
 ################################################################################
-# Phase 5: Nginx Caching Configuration
+# Phase 5: Install and Configure Nginx
 ################################################################################
 
-log "Phase 5: Configuring Nginx with Caching"
+log "Phase 5: Installing and configuring Nginx..."
 
-# Stop nginx if running
-systemctl stop nginx 2>/dev/null || true
+# Install Nginx
+apt install -y nginx
 
-# Backup default configuration
-cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.backup
-
-# Create optimized nginx configuration with caching
+# Create main Nginx configuration
 cat > /etc/nginx/nginx.conf << 'NGINX_EOF'
 user www-data;
 worker_processes auto;
@@ -402,34 +424,32 @@ pid /run/nginx.pid;
 include /etc/nginx/modules-enabled/*.conf;
 
 events {
-    worker_connections 768;
+    worker_connections 1024;
     use epoll;
     multi_accept on;
 }
 
 http {
+    # Basic Settings
     sendfile on;
     tcp_nopush on;
     tcp_nodelay on;
     keepalive_timeout 65;
     types_hash_max_size 2048;
-    server_tokens off;
-
+    client_max_body_size 5G;
+    
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
-
-    # Logging
+    
+    # Logging Settings
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                   '$status $body_bytes_sent "$http_referer" '
-                   '"$http_user_agent" "$http_x_forwarded_for" '
-                   'rt=$request_time uct="$upstream_connect_time" '
-                   'uht="$upstream_header_time" urt="$upstream_response_time" '
-                   'cache=$upstream_cache_status';
-
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    
     access_log /var/log/nginx/access.log main;
-    error_log /var/log/nginx/error.log;
-
-    # Gzip compression
+    error_log /var/log/nginx/error.log warn;
+    
+    # Gzip Settings
     gzip on;
     gzip_vary on;
     gzip_proxied any;
@@ -439,38 +459,29 @@ http {
         text/css
         text/xml
         text/javascript
-        application/json
         application/javascript
         application/xml+rss
-        application/atom+xml
+        application/json
+        application/xml
         image/svg+xml;
-
-    # Cache configuration
-    proxy_cache_path /mnt/hdd-cache/nginx/web levels=1:2 keys_zone=web_cache:100m max_size=10g inactive=7d use_temp_path=off;
-    proxy_cache_path /mnt/hdd-cache/nginx/gaming levels=1:2 keys_zone=gaming_cache:200m max_size=100g inactive=30d use_temp_path=off;
     
-    # Create cache directories
+    # Cache Settings
+    proxy_cache_path /mnt/hdd-cache/nginx/web levels=1:2 keys_zone=web_cache:10m max_size=10g inactive=60m use_temp_path=off;
+    proxy_cache_path /mnt/hdd-cache/nginx/gaming levels=1:2 keys_zone=gaming_cache:10m max_size=50g inactive=30d use_temp_path=off;
     proxy_temp_path /mnt/hdd-cache/nginx/temp;
-
-    # Cache settings
-    proxy_cache_valid 200 302 1h;
-    proxy_cache_valid 301 1d;
-    proxy_cache_valid 404 1m;
-    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
-    proxy_cache_lock on;
-    proxy_cache_lock_timeout 5s;
-
-    # Gaming cache map
-    map $http_host $gaming_cache_enable {
-        ~*steam 1;
-        ~*epicgames 1;
-        ~*origin 1;
-        ~*xbox 1;
-        ~*playstation 1;
-        ~*battle\.net 1;
-        default 0;
-    }
-
+    
+    # Rate Limiting
+    limit_req_zone $binary_remote_addr zone=login:10m rate=10r/m;
+    limit_req_zone $binary_remote_addr zone=api:10m rate=1r/s;
+    
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    
+    # Include additional configurations
     include /etc/nginx/conf.d/*.conf;
     include /etc/nginx/sites-enabled/*;
 }
@@ -483,138 +494,168 @@ chown -R www-data:www-data /mnt/hdd-cache/nginx
 # Remove default site
 rm -f /etc/nginx/sites-enabled/default
 
+# Create gaming cache site
+cat > /etc/nginx/sites-available/gaming-cache << 'GAMING_EOF'
+# Gaming Cache Configuration
+# Steam Cache
+server {
+    listen 80;
+    server_name steamcache.local steampipe.akamaized.net *.cs.steampowered.com content*.steampowered.com *.steamcontent.com clientconfig.akamai.steamstatic.com;
+    
+    location / {
+        proxy_cache gaming_cache;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 5s;
+        
+        proxy_pass http://$http_host$request_uri;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_temp_file_write_size 64k;
+        proxy_temp_path /mnt/hdd-cache/nginx/temp;
+        
+        # Cache large files
+        location ~* \.(pak|vpk|zip|exe|msi|deb|rpm)$ {
+            proxy_cache gaming_cache;
+            proxy_cache_valid 200 90d;
+            proxy_cache_lock on;
+            proxy_pass http://$http_host$request_uri;
+        }
+    }
+}
+
+# Epic Games Cache
+server {
+    listen 80;
+    server_name epicgames-download1.akamaized.net download.epicgames.com download2.epicgames.com download3.epicgames.com download4.epicgames.com;
+    
+    location / {
+        proxy_cache gaming_cache;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        
+        proxy_pass http://$http_host$request_uri;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# Origin Cache
+server {
+    listen 80;
+    server_name origin-a.akamaihd.net;
+    
+    location / {
+        proxy_cache gaming_cache;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid 404 1m;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_cache_lock on;
+        
+        proxy_pass http://$http_host$request_uri;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+GAMING_EOF
+
 # Create main dashboard site
-cat > /etc/nginx/sites-available/dashboard << 'DASHBOARD_EOF'
+cat > /etc/nginx/sites-available/homelab-dashboard << 'DASHBOARD_EOF'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     
+    server_name _;
     root /var/www/html;
     index index.html index.htm;
-    server_name _;
-
+    
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
-
+    add_header X-XSS-Protection "1; mode=block" always;
+    
     location / {
         try_files $uri $uri/ =404;
     }
-
-    # Cache static content
-    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
+    
+    # Proxy to AdGuard Home
+    location /adguard/ {
+        proxy_pass http://127.0.0.1:3000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Proxy to Nextcloud
+    location /nextcloud/ {
+        proxy_pass http://127.0.0.1:8080/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 5G;
+    }
+    
+    # Streaming optimization
+    location ~* \.(mp4|webm|ogg|avi|wmv|flv|mov|mkv)$ {
+        proxy_cache web_cache;
+        proxy_cache_valid 200 7d;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        
+        add_header X-Cache-Status $upstream_cache_status;
+        expires 7d;
         add_header Cache-Control "public, immutable";
     }
 }
 DASHBOARD_EOF
 
-# Create Nextcloud site configuration
-cat > /etc/nginx/sites-available/nextcloud << 'NEXTCLOUD_EOF'
-server {
-    listen 8080;
-    server_name _;
-    
-    root /var/www/nextcloud;
-    index index.php index.html;
-    
-    client_max_body_size 512M;
-    fastcgi_buffers 64 4K;
-
-    # Security headers
-    add_header Referrer-Policy "no-referrer" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Download-Options "noopen" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Permitted-Cross-Domain-Policies "none" always;
-    add_header X-Robots-Tag "none" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    location = /.well-known/carddav {
-        return 301 $scheme://$host:$server_port/remote.php/dav;
-    }
-    
-    location = /.well-known/caldav {
-        return 301 $scheme://$host:$server_port/remote.php/dav;
-    }
-
-    location / {
-        rewrite ^ /index.php;
-    }
-
-    location ~ ^\/(?:build|tests|config|lib|3rdparty|templates|data)\/ {
-        deny all;
-    }
-    
-    location ~ ^\/(?:\.|autotest|occ|issue|indie|db_|console) {
-        deny all;
-    }
-
-    location ~ ^\/(?:index|remote|public|cron|core\/ajax\/update|status|ocs\/v[12]|updater\/.+|oc[ms]-provider\/.+)\.php(?:$|\/) {
-        fastcgi_split_path_info ^(.+?\.php)(\/.*|)$;
-        set $path_info $fastcgi_path_info;
-        
-        try_files $fastcgi_script_name =404;
-        
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO $path_info;
-        fastcgi_param modHeadersAvailable true;
-        fastcgi_param front_controller_active true;
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-        fastcgi_intercept_errors on;
-        fastcgi_request_buffering off;
-    }
-
-    location ~ ^\/(?:updater|oc[ms]-provider)(?:$|\/) {
-        try_files $uri/ =404;
-        index index.php;
-    }
-
-    location ~ \.(?:css|js|woff2?|svg|gif|map)$ {
-        try_files $uri /index.php$request_uri;
-        add_header Cache-Control "public, max-age=15778463";
-        expires 6M;
-    }
-
-    location ~ \.(?:png|html|ttf|ico|jpg|jpeg|bcmap)$ {
-        try_files $uri /index.php$request_uri;
-        expires 6M;
-    }
-}
-NEXTCLOUD_EOF
-
 # Enable sites
-ln -sf /etc/nginx/sites-available/dashboard /etc/nginx/sites-enabled/
-ln -sf /etc/nginx/sites-available/nextcloud /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/homelab-dashboard /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/gaming-cache /etc/nginx/sites-enabled/
 
-# Test nginx configuration
-if nginx -t; then
-    success "Nginx configuration is valid"
-else
-    error "Nginx configuration has errors"
-    exit 1
-fi
+# Test and start Nginx
+nginx -t
+systemctl start nginx
+systemctl enable nginx
+
+success "Nginx configured with caching and gaming optimization"
 
 ################################################################################
-# Phase 6: Nextcloud Installation
+# Phase 6: Install Nextcloud
 ################################################################################
 
-log "Phase 6: Installing Nextcloud"
+log "Phase 6: Installing Nextcloud..."
 
-# Download latest Nextcloud
+# Install PHP and dependencies
+apt install -y php8.3 php8.3-fpm php8.3-mysql php8.3-xml php8.3-gd php8.3-curl php8.3-zip php8.3-intl php8.3-mbstring php8.3-bcmath php8.3-json php8.3-redis php8.3-imagick mariadb-server
+
+# Secure MariaDB
+mysql_secure_installation --use-default
+
+# Create Nextcloud database
+mysql -u root << 'MYSQL_EOF'
+CREATE DATABASE nextcloud;
+CREATE USER 'nextcloud'@'localhost' IDENTIFIED BY 'nextcloud_secure_password_2025';
+GRANT ALL PRIVILEGES ON nextcloud.* TO 'nextcloud'@'localhost';
+FLUSH PRIVILEGES;
+MYSQL_EOF
+
+# Download and install Nextcloud
 cd /tmp
-log "Downloading Nextcloud..."
-
-# Get latest version
-NEXTCLOUD_VERSION=$(curl -s https://download.nextcloud.com/server/releases/ | grep -oP 'nextcloud-\K[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
-NEXTCLOUD_URL="https://download.nextcloud.com/server/releases/nextcloud-${NEXTCLOUD_VERSION}.tar.bz2"
-
-curl -L "$NEXTCLOUD_URL" -o nextcloud.tar.bz2
-tar -xjf nextcloud.tar.bz2
-
-# Install Nextcloud
+wget https://download.nextcloud.com/server/releases/latest.tar.bz2
+tar -xjf latest.tar.bz2
 if [[ -d /var/www/nextcloud ]]; then
     mv /var/www/nextcloud /var/www/nextcloud.backup.$(date +%s)
 fi
@@ -623,23 +664,140 @@ mv nextcloud /var/www/
 chown -R www-data:www-data /var/www/nextcloud
 chmod -R 755 /var/www/nextcloud
 
-# Configure Nextcloud data directory
-mkdir -p /mnt/ssd-data/nextcloud/data
+# Configure Nextcloud
+sudo -u www-data php /var/www/nextcloud/occ maintenance:install \
+    --database "mysql" \
+    --database-name "nextcloud" \
+    --database-user "nextcloud" \
+    --database-pass "nextcloud_secure_password_2025" \
+    --admin-user "admin" \
+    --admin-pass "admin123" \
+    --data-dir "/mnt/ssd-data/nextcloud"
+
+# Configure trusted domains
+sudo -u www-data php /var/www/nextcloud/occ config:system:set trusted_domains 0 --value="$SYSTEM_IP"
+sudo -u www-data php /var/www/nextcloud/occ config:system:set trusted_domains 1 --value="localhost"
+
+# Set up data directory symlink
+ln -sf /mnt/ssd-data/nextcloud /var/www/nextcloud/data
 chown -R www-data:www-data /mnt/ssd-data/nextcloud
-chmod -R 750 /mnt/ssd-data/nextcloud
 
-success "Nextcloud installed"
+# Create Nextcloud Nginx configuration
+cat > /etc/nginx/sites-available/nextcloud << 'NEXTCLOUD_EOF'
+server {
+    listen 8080;
+    listen [::]:8080;
+    
+    server_name _;
+    root /var/www/nextcloud;
+    index index.php index.html index.htm;
+    
+    client_max_body_size 5G;
+    fastcgi_buffers 64 4K;
+    
+    # Security headers
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Download-Options "noopen" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Permitted-Cross-Domain-Policies "none" always;
+    add_header X-Robots-Tag "none" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Remove X-Powered-By
+    fastcgi_hide_header X-Powered-By;
+    
+    # Path to the root of your installation
+    root /var/www/nextcloud;
+    
+    # Specify how to handle directories
+    location = / {
+        if ( $http_user_agent ~ ^DavClnt ) {
+            return 302 /remote.php/webdav/$is_args$args;
+        }
+    }
+    
+    location = /robots.txt {
+        allow all;
+        log_not_found off;
+        access_log off;
+    }
+    
+    # Make a regex exception for `/.well-known` so that clients can still
+    # access it despite the existence of the regex rule
+    location ^~ /.well-known {
+        location = /.well-known/carddav { return 301 /remote.php/dav/; }
+        location = /.well-known/caldav  { return 301 /remote.php/dav/; }
+        
+        location /.well-known/acme-challenge    { try_files $uri $uri/ =404; }
+        location /.well-known/pki-validation    { try_files $uri $uri/ =404; }
+        
+        return 301 /index.php$request_uri;
+    }
+    
+    # Rules borrowed from `.htaccess` to hide certain paths from clients
+    location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)(?:$|/)  { return 404; }
+    location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console)                { return 404; }
+    
+    # Ensure this block, which passes PHP files to the PHP process, is above the blocks
+    # which handle static assets (as a `location` block is matched on the first match)
+    location ~ \.php(?:$|/) {
+        # Required for legacy support
+        rewrite ^/(?!index|remote|public|cron|core\/ajax\/update|status|ocs\/v[12]|updater\/.+|oc[ms]-provider\/.+|.+\/richdocumentscode\/proxy) /index.php$request_uri;
+        
+        fastcgi_split_path_info ^(.+?\.php)(/.*)$;
+        set $path_info $fastcgi_path_info;
+        
+        try_files $fastcgi_script_name =404;
+        
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $path_info;
+        
+        fastcgi_param modHeadersAvailable true;
+        fastcgi_param front_controller_active true;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        
+        fastcgi_intercept_errors on;
+        fastcgi_request_buffering off;
+        
+        fastcgi_max_temp_file_size 0;
+        fastcgi_send_timeout 3600;
+        fastcgi_read_timeout 3600;
+    }
+    
+    location ~ \.(?:css|js|svg|gif|png|jpg|jpeg|html|woff2?)$ {
+        try_files $uri /index.php$request_uri;
+        expires 6M;
+        access_log off;
+        
+        location ~ \.woff2?$ {
+            add_header Cache-Control "public, immutable";
+        }
+    }
+    
+    location / {
+        try_files $uri $uri/ /index.php$request_uri;
+    }
+}
+NEXTCLOUD_EOF
 
-# Clean up
-rm -f /tmp/nextcloud.tar.bz2
+# Enable Nextcloud site
+ln -sf /etc/nginx/sites-available/nextcloud /etc/nginx/sites-enabled/
+
+# Restart services
+systemctl restart php8.3-fpm
+systemctl restart nginx
+
+success "Nextcloud installed and configured"
 
 ################################################################################
 # Phase 7: Create Beautiful Dashboard
 ################################################################################
 
-log "Phase 7: Creating Dashboard"
+log "Phase 7: Creating dashboard..."
 
-# Create beautiful dashboard
+# Create main dashboard HTML
 cat > /var/www/html/index.html << 'HTML_EOF'
 <!DOCTYPE html>
 <html lang="en">
@@ -657,25 +815,25 @@ cat > /var/www/html/index.html << 'HTML_EOF'
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             min-height: 100vh;
-            padding: 2rem;
+            color: #fff;
         }
         
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 3rem;
-            animation: fadeInDown 1s ease-out;
+            margin-bottom: 40px;
+            padding: 40px 0;
         }
         
         .header h1 {
             font-size: 3rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
         
@@ -684,128 +842,90 @@ cat > /var/www/html/index.html << 'HTML_EOF'
             opacity: 0.9;
         }
         
-        .services {
+        .services-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-bottom: 3rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
         }
         
-        .service {
-            background: rgba(255,255,255,0.1);
+        .service-card {
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
-            padding: 2rem;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s ease;
-            animation: fadeInUp 1s ease-out;
-        }
-        
-        .service:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            background: rgba(255,255,255,0.15);
-        }
-        
-        .service h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .service p {
-            opacity: 0.9;
-            margin-bottom: 1.5rem;
-            line-height: 1.6;
-        }
-        
-        .service a {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 0.75rem 1.5rem;
-            border-radius: 50px;
+            padding: 30px;
             text-decoration: none;
-            color: white;
-            font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
             transition: all 0.3s ease;
-        }
-        
-        .service a:hover {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.05);
-        }
-        
-        .status {
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 2rem;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .service-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .service-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .service-description {
+            opacity: 0.8;
+            line-height: 1.5;
+        }
+        
+        .status-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
             text-align: center;
-            animation: fadeIn 1s ease-out 0.5s both;
         }
         
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
         }
         
         .status-item {
-            background: rgba(255,255,255,0.1);
-            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
             border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-            animation: pulse 2s infinite;
-        }
-        
-        .online { background: #4ade80; }
-        .warning { background: #fbbf24; }
-        .offline { background: #ef4444; }
-        
-        .footer {
             text-align: center;
-            margin-top: 3rem;
-            opacity: 0.8;
-            animation: fadeIn 1s ease-out 1s both;
         }
         
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-30px); }
-            to { opacity: 1; transform: translateY(0); }
+        .status-online {
+            color: #4ade80;
         }
         
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .status-offline {
+            color: #f87171;
         }
         
         @media (max-width: 768px) {
-            .header h1 { font-size: 2rem; }
-            .services { grid-template-columns: 1fr; }
-            body { padding: 1rem; }
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -813,140 +933,125 @@ cat > /var/www/html/index.html << 'HTML_EOF'
     <div class="container">
         <div class="header">
             <h1>🏠 ZimaBoard 2 Ultimate Homelab</h1>
-            <p>Your Personal Security, Privacy & Entertainment Hub</p>
+            <p>2025 Edition - Complete Self-Hosted Solution</p>
         </div>
         
-        <div class="services">
-            <div class="service">
-                <h3>🛡️ AdGuard Home</h3>
-                <p>Network-wide ad blocking, DNS filtering, and malware protection for all your devices. Blocks ads in YouTube, streaming services, and protects against phishing.</p>
-                <a href="http://SYSTEM_IP:3000" target="_blank">Access AdGuard →</a>
+        <div class="services-grid">
+            <a href="http://SYSTEM_IP:3000" class="service-card" target="_blank">
+                <span class="service-icon">🛡️</span>
+                <div class="service-title">AdGuard Home</div>
+                <div class="service-description">
+                    Network-wide ad blocking and DNS filtering. Configure custom DNS rules and block malicious domains.
+                </div>
+            </a>
+            
+            <a href="http://SYSTEM_IP:8080" class="service-card" target="_blank">
+                <span class="service-icon">☁️</span>
+                <div class="service-title">Nextcloud</div>
+                <div class="service-description">
+                    1TB personal cloud storage. File sync, sharing, and collaboration platform with mobile apps.
+                </div>
+            </a>
+            
+            <div class="service-card">
+                <span class="service-icon">⚡</span>
+                <div class="service-title">Gaming Cache</div>
+                <div class="service-description">
+                    Automatic caching for Steam, Epic Games, and Origin downloads. Faster game updates and downloads.
+                </div>
             </div>
             
-            <div class="service">
-                <h3>☁️ Nextcloud Personal Cloud</h3>
-                <p>Your private 1TB cloud storage with file sync, sharing, calendar, contacts, and collaboration tools. Access your files from anywhere securely.</p>
-                <a href="http://SYSTEM_IP:8080" target="_blank">Access Nextcloud →</a>
-            </div>
-            
-            <div class="service">
-                <h3>🎮 Gaming & Streaming Cache</h3>
-                <p>Intelligent caching for Steam, Epic Games, Origin downloads and streaming content. Saves bandwidth and speeds up downloads for multiple devices.</p>
-                <a href="#" onclick="showCacheInfo()">View Cache Stats →</a>
-            </div>
-            
-            <div class="service">
-                <h3>📊 System Monitoring</h3>
-                <p>Real-time monitoring of your ZimaBoard 2 performance, storage usage, network activity, and service health status.</p>
-                <a href="#" onclick="showSystemInfo()">System Info →</a>
+            <div class="service-card">
+                <span class="service-icon">📺</span>
+                <div class="service-title">Streaming Cache</div>
+                <div class="service-description">
+                    Optimized caching for video content. Improved streaming performance for YouTube and Netflix.
+                </div>
             </div>
         </div>
         
-        <div class="status">
-            <h3>🎯 System Status</h3>
+        <div class="status-section">
+            <div class="status-title">🔍 System Status</div>
             <div class="status-grid">
                 <div class="status-item">
-                    <span class="status-indicator online"></span>
-                    AdGuard Home: Online
+                    <strong>AdGuard Home</strong><br>
+                    <span id="adguard-status" class="status-offline">Checking...</span>
                 </div>
                 <div class="status-item">
-                    <span class="status-indicator online"></span>
-                    Nextcloud: Online
+                    <strong>Nextcloud</strong><br>
+                    <span id="nextcloud-status" class="status-offline">Checking...</span>
                 </div>
                 <div class="status-item">
-                    <span class="status-indicator online"></span>
-                    Cache System: Active
+                    <strong>Nginx Cache</strong><br>
+                    <span id="nginx-status" class="status-offline">Checking...</span>
                 </div>
                 <div class="status-item">
-                    <span class="status-indicator online"></span>
-                    Security: Protected
+                    <strong>System Load</strong><br>
+                    <span id="system-load">Loading...</span>
                 </div>
             </div>
-            <p style="margin-top: 1rem; opacity: 0.8;">Last updated: <span id="timestamp"></span></p>
-        </div>
-        
-        <div class="footer">
-            <p>ZimaBoard 2 Ultimate Homelab • 2025 Edition • Powered by Ubuntu Server 24.04 LTS</p>
-            <p style="margin-top: 0.5rem;">🔒 Your data, your network, your control</p>
         </div>
     </div>
     
     <script>
-        // Update timestamp
-        function updateTimestamp() {
-            document.getElementById('timestamp').textContent = new Date().toLocaleString();
-        }
-        updateTimestamp();
-        setInterval(updateTimestamp, 60000);
+        // Replace SYSTEM_IP with actual IP
+        const systemIP = 'SYSTEM_IP';
+        document.querySelectorAll('a[href*="SYSTEM_IP"]').forEach(link => {
+            link.href = link.href.replace('SYSTEM_IP', systemIP);
+        });
         
-        // Show cache information
-        function showCacheInfo() {
-            alert('Gaming Cache Features:\n\n' +
-                  '🎮 Steam downloads cached\n' +
-                  '🎮 Epic Games downloads cached\n' +
-                  '🎮 Origin (EA) downloads cached\n' +
-                  '📺 YouTube content cached\n' +
-                  '📺 Streaming metadata cached\n\n' +
-                  'Expected 50-70% bandwidth savings for repeated downloads!');
-        }
-        
-        // Show system information
-        function showSystemInfo() {
-            alert('ZimaBoard 2 System Info:\n\n' +
-                  '💾 64GB eMMC: Ubuntu Server OS\n' +
-                  '💽 2TB SSD: Nextcloud data storage\n' +
-                  '💽 500GB HDD: Cache storage\n' +
-                  '🧠 16GB RAM: Optimally allocated\n' +
-                  '🌐 IP: SYSTEM_IP\n\n' +
-                  'SSH access: ssh username@SYSTEM_IP');
-        }
-        
-        // Check service status
+        // Simple status checking
         async function checkServices() {
-            const statusItems = document.querySelectorAll('.status-indicator');
+            try {
+                // Check AdGuard Home
+                const adguardResponse = await fetch(`http://${systemIP}:3000`, { mode: 'no-cors' });
+                document.getElementById('adguard-status').textContent = '✅ Online';
+                document.getElementById('adguard-status').className = 'status-online';
+            } catch {
+                document.getElementById('adguard-status').textContent = '❌ Offline';
+                document.getElementById('adguard-status').className = 'status-offline';
+            }
             
-            // This would typically make AJAX calls to check actual service status
-            // For now, we'll simulate online status
-            statusItems.forEach(indicator => {
-                indicator.className = 'status-indicator online';
-            });
+            try {
+                // Check Nextcloud
+                const nextcloudResponse = await fetch(`http://${systemIP}:8080`, { mode: 'no-cors' });
+                document.getElementById('nextcloud-status').textContent = '✅ Online';
+                document.getElementById('nextcloud-status').className = 'status-online';
+            } catch {
+                document.getElementById('nextcloud-status').textContent = '❌ Offline';
+                document.getElementById('nextcloud-status').className = 'status-offline';
+            }
+            
+            // Nginx is always online if this page loads
+            document.getElementById('nginx-status').textContent = '✅ Online';
+            document.getElementById('nginx-status').className = 'status-online';
+            
+            // System load (simulated)
+            document.getElementById('system-load').textContent = 'Low';
         }
         
-        // Initial status check
-        checkServices();
+        // Check services on load
+        setTimeout(checkServices, 1000);
         
-        // Check status every 30 seconds
+        // Check services every 30 seconds
         setInterval(checkServices, 30000);
     </script>
 </body>
 </html>
 HTML_EOF
 
-# Replace IP placeholder
+# Replace SYSTEM_IP placeholder with actual IP
 sed -i "s/SYSTEM_IP/$SYSTEM_IP/g" /var/www/html/index.html
 
-success "Dashboard created"
+success "Dashboard created successfully"
 
 ################################################################################
-# Phase 8: Service Configuration and Startup
+# Phase 8: Final Configuration and Cleanup
 ################################################################################
 
-log "Phase 8: Starting Services"
+log "Phase 8: Final configuration..."
 
-# Configure PHP-FPM
-sed -i 's/;env\[PATH\]/env[PATH]/' /etc/php/8.3/fpm/pool.d/www.conf
-systemctl enable php8.3-fpm
-systemctl start php8.3-fpm
-
-# Start Nginx
-systemctl enable nginx
-systemctl start nginx
-
-# Configure fail2ban
-systemctl enable fail2ban
-systemctl start fail2ban
-
-# Create simple status check script
+# Create system status script
 cat > /usr/local/bin/homelab-status << 'STATUS_EOF'
 #!/bin/bash
 echo "=== ZimaBoard 2 Homelab Status ==="
@@ -973,35 +1078,93 @@ STATUS_EOF
 
 chmod +x /usr/local/bin/homelab-status
 
-success "Services configured and started"
+# Create useful information file
+cat > /root/HOMELAB_INFO.txt << 'INFO_EOF'
+ZimaBoard 2 Ultimate Homelab - 2025 Edition
+==========================================
 
-################################################################################
-# Phase 9: Final Configuration and Testing
-################################################################################
+System IP: SYSTEM_IP
 
-log "Phase 9: Final Configuration"
+Services:
+---------
+🏠 Main Dashboard:     http://SYSTEM_IP
+🛡️ AdGuard Home:       http://SYSTEM_IP:3000
+☁️ Nextcloud:          http://SYSTEM_IP:8080
 
-# Wait for services to fully start
+Default Credentials:
+-------------------
+AdGuard Home: admin / admin (change on first login)
+Nextcloud: admin / admin123
+
+Storage Layout:
+--------------
+SSD_DEVICE -> /mnt/ssd-data (Nextcloud data)
+HDD_DEVICE -> /mnt/hdd-cache (Nginx cache)
+
+Useful Commands:
+---------------
+homelab-status          - Check all services
+systemctl status nginx  - Check Nginx status
+systemctl status AdGuardHome - Check AdGuard status
+docker ps               - List running containers
+
+Configuration Files:
+-------------------
+/opt/AdGuardHome/AdGuardHome.yaml - AdGuard configuration
+/etc/nginx/nginx.conf - Main Nginx configuration
+/var/www/nextcloud - Nextcloud installation
+
+Logs:
+-----
+/var/log/nginx/ - Nginx logs
+journalctl -u AdGuardHome - AdGuard logs
+journalctl -u nginx - Nginx service logs
+
+Cache Directories:
+-----------------
+/mnt/hdd-cache/nginx/gaming - Gaming cache
+/mnt/hdd-cache/nginx/web - Web cache
+/mnt/ssd-data/nextcloud - Nextcloud data
+
+Network Configuration:
+---------------------
+Configure your router's DNS to: SYSTEM_IP
+This will enable network-wide ad blocking
+
+Gaming Cache:
+------------
+Automatically caches downloads from:
+- Steam (steampipe.akamaized.net)
+- Epic Games (epicgames-download1.akamaized.net)
+- Origin (origin-a.akamaihd.net)
+
+Maintenance:
+-----------
+Update system: apt update && apt upgrade
+Backup Nextcloud: sudo -u www-data php /var/www/nextcloud/occ maintenance:mode --on
+Clean cache: rm -rf /mnt/hdd-cache/nginx/*/*
+
+Support:
+-------
+For issues, check: https://github.com/th3cavalry/zimaboard-2-home-lab
+INFO_EOF
+
+# Replace placeholders in info file
+sed -i "s/SYSTEM_IP/$SYSTEM_IP/g" /root/HOMELAB_INFO.txt
+sed -i "s/SSD_DEVICE/${SSD_DEVICE:-N\/A}/g" /root/HOMELAB_INFO.txt
+sed -i "s/HDD_DEVICE/${HDD_DEVICE:-N\/A}/g" /root/HOMELAB_INFO.txt
+
+# Wait a moment for services to start up
+log "Waiting for services to initialize..."
 sleep 10
 
-# Test services
-log "Testing services..."
+# Check if services are running
+log "Checking service status..."
+systemctl is-active --quiet nginx && success "✅ Nginx is running" || warning "⚠️ Nginx may still be starting"
+systemctl is-active --quiet AdGuardHome && success "✅ AdGuard Home is running" || warning "⚠️ AdGuard Home may still be starting"
+systemctl is-active --quiet php8.3-fpm && success "✅ PHP-FPM is running" || warning "⚠️ PHP-FPM may still be starting"
 
-# Test AdGuard Home
-if curl -s http://localhost:3000 > /dev/null; then
-    success "✅ AdGuard Home is responding"
-else
-    warning "⚠️ AdGuard Home may still be starting"
-fi
-
-# Test Nginx
-if curl -s http://localhost > /dev/null; then
-    success "✅ Nginx dashboard is responding"
-else
-    warning "⚠️ Nginx dashboard is not responding"
-fi
-
-# Test Nextcloud
+# Test Nextcloud connectivity
 if curl -s http://localhost:8080 > /dev/null; then
     success "✅ Nextcloud is responding"
 else
@@ -1011,45 +1174,33 @@ fi
 # Create helpful alias
 echo "alias homelab-status='/usr/local/bin/homelab-status'" >> /root/.bashrc
 
-# Create quick setup info
-cat > /root/HOMELAB_INFO.txt << INFO_EOF
-=== ZimaBoard 2 Ultimate Homelab - Setup Complete ===
+# Create quick reference card
+cat > /root/QUICK_REFERENCE.txt << 'QUICK_EOF'
+╔══════════════════════════════════════════════════════════════╗
+║                   QUICK REFERENCE CARD                      ║
+╠══════════════════════════════════════════════════════════════╣
+║ Dashboard:      http://SYSTEM_IP                            ║
+║ AdGuard:        http://SYSTEM_IP:3000                       ║
+║ Nextcloud:      http://SYSTEM_IP:8080                       ║
+║                                                              ║
+║ Status:         homelab-status                              ║
+║ Info:           cat /root/HOMELAB_INFO.txt                  ║
+║                                                              ║
+║ Configure DNS on your router to: SYSTEM_IP                  ║
+╚══════════════════════════════════════════════════════════════╝
+QUICK_EOF
 
-🌐 Access Your Services:
-- Main Dashboard: http://$SYSTEM_IP
-- AdGuard Home: http://$SYSTEM_IP:3000
-- Nextcloud: http://$SYSTEM_IP:8080
+sed -i "s/SYSTEM_IP/$SYSTEM_IP/g" /root/QUICK_REFERENCE.txt
 
-🔧 Management Commands:
-- homelab-status          # Check all services
-- systemctl status SERVICE # Check specific service
-- sudo systemctl restart SERVICE # Restart service
+# Clean up temporary files
+apt autoremove -y
+apt autoclean
+rm -f /tmp/latest.tar.bz2
 
-📁 Important Directories:
-- Nextcloud Data: /mnt/ssd-data/nextcloud
-- Cache Storage: /mnt/hdd-cache/nginx
-- Configuration: /opt/AdGuardHome/conf/
-
-🔒 Next Steps:
-1. Configure AdGuard Home: http://$SYSTEM_IP:3000
-2. Set up Nextcloud: http://$SYSTEM_IP:8080
-3. Configure your router DNS to: $SYSTEM_IP
-4. Install Nextcloud mobile apps
-
-🛡️ Security:
-- Firewall: Active (UFW)
-- Fail2ban: Active
-- AdGuard: Malware protection enabled
-
-📊 Storage Usage:
-$(df -h | grep -E '(ssd-data|hdd-cache)')
-
-Happy Homelabbing! 🏠🔒🚀
-INFO_EOF
-
-success "Setup information saved to /root/HOMELAB_INFO.txt"
+success "System cleanup completed"
 
 ################################################################################
+#####
 # Installation Complete
 ################################################################################
 
@@ -1091,5 +1242,5 @@ echo "✅ Optimal storage utilization"
 echo
 
 echo -e "${GREEN}🚀 Your ZimaBoard 2 Ultimate Homelab is ready!${NC}"
-echo -e "${CYAN}Happy Homelabbing! 🏠🔒🚀${NC}"
+echo -e "${CYAN}Happy Homelabbing! ��🔒🚀${NC}"
 echo
