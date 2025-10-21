@@ -78,30 +78,60 @@ echo ""
 
 echo "📦 Phase 1: Installing packages..."
 
-# Set non-interactive mode
+# Set non-interactive mode to prevent prompts
 export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
 
-# Update system
+# Function to install package with timeout and retry
+install_package() {
+    local package="$1"
+    local max_attempts=3
+    local attempt=1
+    
+    echo "  → Installing $package..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if timeout 60 apt install -y "$package" >/dev/null 2>&1; then
+            return 0
+        else
+            echo "    ⚠️ Attempt $attempt failed for $package, retrying..."
+            ((attempt++))
+            sleep 2
+        fi
+    done
+    
+    echo "    ❌ Failed to install $package after $max_attempts attempts"
+    return 1
+}
+
+# Wait for any existing package manager operations to complete
+echo "  → Waiting for package manager..."
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+    echo "    Waiting for other package operations to complete..."
+    sleep 5
+done
+
+# Update system with timeout
 echo "  → Updating package lists..."
-apt update >/dev/null 2>&1
+if ! timeout 120 apt update >/dev/null 2>&1; then
+    echo "    ⚠️ Package update timed out or failed, continuing anyway..."
+fi
 
-# Install packages one by one to identify issues
-echo "  → Installing curl..."
-apt install -y curl >/dev/null 2>&1
+# Install packages with error handling
+install_package "curl" || echo "    ⚠️ curl installation failed, may already be installed"
+install_package "wget" || echo "    ⚠️ wget installation failed, may already be installed"
+install_package "nginx" || echo "    ⚠️ nginx installation failed"
+install_package "ufw" || echo "    ⚠️ ufw installation failed"
 
-echo "  → Installing wget..."
-apt install -y wget >/dev/null 2>&1
+# Install PHP packages together
+echo "  → Installing PHP packages..."
+if ! timeout 120 apt install -y php8.3-fpm php8.3-sqlite3 >/dev/null 2>&1; then
+    echo "    ⚠️ PHP installation failed or timed out"
+    # Try to install just basic PHP
+    timeout 60 apt install -y php-fpm >/dev/null 2>&1 || echo "    ⚠️ Basic PHP installation also failed"
+fi
 
-echo "  → Installing nginx..."
-apt install -y nginx >/dev/null 2>&1
-
-echo "  → Installing UFW firewall..."
-apt install -y ufw >/dev/null 2>&1
-
-echo "  → Installing PHP..."
-apt install -y php8.3-fpm php8.3-sqlite3 >/dev/null 2>&1
-
-echo -e "${GREEN}✅ Packages installed${NC}"
+echo -e "${GREEN}✅ Packages installation completed${NC}"
 echo ""
 
 ################################################################################
@@ -131,17 +161,36 @@ echo ""
 
 echo "🛡️ Phase 3: Installing AdGuard Home..."
 
-# Download AdGuard installer
+# Download AdGuard installer with timeout and retry
 cd /tmp
 echo "  → Downloading AdGuard Home..."
-if curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh -o adguard-install.sh; then
+
+# Clean up any previous downloads
+rm -f adguard-install.sh
+
+if timeout 60 curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh -o adguard-install.sh; then
     echo "  → Installing AdGuard Home..."
     chmod +x adguard-install.sh
-    ./adguard-install.sh -v >/dev/null 2>&1 || echo "  ⚠️ AdGuard installation completed with warnings"
-    echo -e "${GREEN}✅ AdGuard Home installed${NC}"
+    
+    # Run AdGuard installer with timeout
+    if timeout 180 bash adguard-install.sh -v >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ AdGuard Home installed successfully${NC}"
+    else
+        echo "  ⚠️ AdGuard installation timed out or failed"
+        # Try alternative installation method
+        echo "  → Trying alternative installation..."
+        if timeout 60 curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | timeout 120 sh -s -- -v >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ AdGuard Home installed via alternative method${NC}"
+        else
+            echo -e "${YELLOW}⚠️ AdGuard Home installation failed - continuing with other services${NC}"
+        fi
+    fi
 else
     echo -e "${YELLOW}⚠️ AdGuard Home download failed - skipping${NC}"
 fi
+
+# Clean up
+rm -f adguard-install.sh
 echo ""
 
 ################################################################################
@@ -150,26 +199,41 @@ echo ""
 
 echo "☁️ Phase 4: Installing Nextcloud..."
 
-# Download Nextcloud
+# Download Nextcloud with timeout
 cd /tmp
 echo "  → Downloading Nextcloud..."
-if wget -q https://download.nextcloud.com/server/releases/latest.tar.bz2; then
+
+# Clean up any previous downloads
+rm -f latest.tar.bz2
+
+if timeout 180 wget -q https://download.nextcloud.com/server/releases/latest.tar.bz2; then
     echo "  → Extracting Nextcloud..."
-    tar -xjf latest.tar.bz2 >/dev/null 2>&1
-    
-    echo "  → Installing Nextcloud..."
-    if [[ -d /var/www/nextcloud ]]; then
-        rm -rf /var/www/nextcloud.old
-        mv /var/www/nextcloud /var/www/nextcloud.old
+    if timeout 60 tar -xjf latest.tar.bz2 >/dev/null 2>&1; then
+        echo "  → Installing Nextcloud..."
+        
+        # Backup existing installation
+        if [[ -d /var/www/nextcloud ]]; then
+            rm -rf /var/www/nextcloud.old 2>/dev/null || true
+            mv /var/www/nextcloud /var/www/nextcloud.old 2>/dev/null || true
+        fi
+        
+        # Install new version
+        if mv nextcloud /var/www/ 2>/dev/null; then
+            chown -R www-data:www-data /var/www/nextcloud 2>/dev/null || true
+            chmod -R 755 /var/www/nextcloud 2>/dev/null || true
+            echo -e "${GREEN}✅ Nextcloud installed successfully${NC}"
+        else
+            echo -e "${YELLOW}⚠️ Failed to move Nextcloud files${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️ Failed to extract Nextcloud archive${NC}"
     fi
-    mv nextcloud /var/www/
-    chown -R www-data:www-data /var/www/nextcloud
-    chmod -R 755 /var/www/nextcloud
-    
-    echo -e "${GREEN}✅ Nextcloud installed${NC}"
 else
-    echo -e "${YELLOW}⚠️ Nextcloud download failed - skipping${NC}"
+    echo -e "${YELLOW}⚠️ Nextcloud download failed or timed out - skipping${NC}"
 fi
+
+# Clean up
+rm -f latest.tar.bz2
 echo ""
 
 ################################################################################
