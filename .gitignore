@@ -46,6 +46,7 @@ certs/
 
 # User data (should be backed up separately)
 data/
+!data/*/README.md
 nextcloud_data/
 adguard_data/
 cache_data/

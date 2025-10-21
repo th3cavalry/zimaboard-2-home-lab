@@ -1,10 +1,19 @@
 version: '3.8'
 
 ################################################################################
-# ZimaBoard 2 Ultimate Homelab - Docker Compose (Optional)
+# ZimaBoard Homelab Services - Docker Compose Configuration
 # 
-# Alternative Docker-based installation for advanced users
-# Use this if you prefer containerized services over native installation
+# This docker-compose file deploys a complete containerized homelab with:
+# - AdGuard Home (network-wide ad blocking and DNS)
+# - Lancache (game download and content caching)
+# - Samba (network file storage)
+# - Optional: Uptime Kuma (network monitoring)
+# - Optional: CrowdSec (intrusion prevention)
+#
+# Prerequisites:
+# 1. Docker and Docker Compose installed
+# 2. Storage devices mounted (2TB SSD, 500GB HDD)
+# 3. .env file configured with your settings
 ################################################################################
 
 networks:
@@ -12,152 +21,264 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
-
-volumes:
-  adguard_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/ssd-data/adguard
-  nextcloud_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/ssd-data/nextcloud
-  nginx_cache:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /mnt/hdd-cache/nginx
+        - subnet: ${DOCKER_SUBNET:-172.20.0.0/16}
+          gateway: ${DOCKER_GATEWAY:-172.20.0.1}
 
 services:
+
+  ################################################################################
+  # AdGuard Home - Network-wide Ad Blocking & DNS
+  ################################################################################
   adguard:
     image: adguard/adguardhome:latest
-    container_name: adguard-home
-    hostname: adguard
+    container_name: adguardhome
+    hostname: adguardhome
     restart: unless-stopped
+    
+    # Network Configuration
+    # Using static IP for reliable DNS service
+    # Alternative: Use network_mode: host for direct host network access
+    # Pro: Better performance, simpler DNS setup
+    # Con: Less isolation, may conflict with host services
     networks:
       homelab:
-        ipv4_address: 172.20.0.2
+        ipv4_address: ${ADGUARD_DOCKER_IP:-172.20.0.2}
+    
+    # Port Mappings
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "3000:3000/tcp"
+      - "${ADGUARD_DNS_PORT:-53}:53/tcp"      # DNS over TCP
+      - "${ADGUARD_DNS_PORT:-53}:53/udp"      # DNS over UDP (primary)
+      - "${ADGUARD_WEB_PORT:-3000}:3000/tcp"  # Web interface
+      - "853:853/tcp"                          # DNS-over-TLS (optional)
+      - "3001:3001/tcp"                        # DNS-over-QUIC (optional)
+    
+    # Volume Mappings
     volumes:
-      - adguard_data:/opt/adguardhome/work
-      - ./config/adguard:/opt/adguardhome/conf
+      - ./data/adguardhome:/opt/adguardhome/work      # Runtime data & logs
+      - ./configs/adguardhome:/opt/adguardhome/conf   # Configuration files
+    
+    # Environment Variables
     environment:
-      - TZ=UTC
+      - TZ=${TIMEZONE:-UTC}
+    
+    # Required Capabilities
     cap_add:
-      - NET_ADMIN
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - NET_ADMIN  # Required for DNS operations
 
-  nginx:
-    image: nginx:alpine
-    container_name: nginx-proxy
-    hostname: nginx
+  ################################################################################
+  # Lancache - Gaming & Content Cache Server
+  ################################################################################
+  lancache:
+    image: lancachenet/monolithic:latest
+    container_name: lancache
+    hostname: lancache
     restart: unless-stopped
+    
+    # Network Configuration
     networks:
       homelab:
-        ipv4_address: 172.20.0.3
+        ipv4_address: ${LANCACHE_DOCKER_IP:-172.20.0.3}
+    
+    # Port Mappings
+    # Note: These ports conflict with AdGuard if using host networking
+    # Keep on bridge network with static IPs for proper isolation
     ports:
-      - "80:80"
-      - "443:443"
+      - "${LANCACHE_HTTP_PORT:-8080}:80/tcp"    # HTTP cache port
+      - "${LANCACHE_HTTPS_PORT:-8443}:443/tcp"  # HTTPS cache port
+    
+    # Volume Mappings
+    # Cache storage should be on HDD for maximum capacity
     volumes:
-      - ./config/nginx:/etc/nginx
-      - ./web:/var/www/html
-      - nginx_cache:/var/cache/nginx
-      - /var/log/nginx:/var/log/nginx
+      - ${DATA_PATH_HDD:-/mnt/hdd}/lancache:/data/cache
+      - ${DATA_PATH_HDD:-/mnt/hdd}/lancache-logs:/data/logs
+    
+    # Environment Variables
     environment:
-      - TZ=UTC
-    depends_on:
-      - nextcloud
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - TZ=${TIMEZONE:-UTC}
+      - CACHE_MEM_SIZE=500m                          # Memory for cache index
+      - CACHE_DISK_SIZE=${LANCACHE_MAX_SIZE:-400}g   # Max cache size on disk
+      - CACHE_MAX_AGE=3650d                          # Keep cached content for 10 years
+      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} # Fallback DNS
+    
+    # Logging Configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  nextcloud:
-    image: nextcloud:apache
-    container_name: nextcloud
-    hostname: nextcloud
+  ################################################################################
+  # Samba - Network File Storage
+  ################################################################################
+  samba:
+    image: dperson/samba:latest
+    container_name: samba
+    hostname: samba
     restart: unless-stopped
+    
+    # Network Configuration
     networks:
       homelab:
-        ipv4_address: 172.20.0.4
+        ipv4_address: ${SAMBA_DOCKER_IP:-172.20.0.4}
+    
+    # Port Mappings
     ports:
-      - "8080:80"
+      - "${SAMBA_SMB_PORT:-445}:445/tcp"           # SMB file sharing
+      - "${SAMBA_NETBIOS_PORT:-139}:139/tcp"       # NetBIOS
+    
+    # Volume Mappings
     volumes:
-      - nextcloud_data:/var/www/html
-      - ./config/nextcloud:/var/www/html/config
+      - ./configs/samba/smb.conf:/etc/samba/smb.conf:ro  # Samba configuration
+      - ${DATA_PATH_SSD:-/mnt/ssd}/fileshare:/shares/Shared  # File share data (1TB on SSD)
+    
+    # Environment Variables
     environment:
-      - NEXTCLOUD_ADMIN_USER=admin
-      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD:-changeme123}
-      - NEXTCLOUD_TRUSTED_DOMAINS=${SYSTEM_IP} localhost
-      - SQLITE_DATABASE=1
-      - NEXTCLOUD_DATA_DIR=/var/www/html/data
-      - TZ=UTC
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      - TZ=${TIMEZONE:-UTC}
+      - USERID=0          # Run as root for maximum compatibility
+      - GROUPID=0
+    
+    # Command: Configure shares
+    # -s "share_name;/path;browsable;read-only;guest;user;user"
+    # -u "username;password" for authenticated access
+    command: >
+      -s "Shared;/shares/Shared;yes;no;yes;all;all"
+      -g "workgroup = ${SAMBA_WORKGROUP:-WORKGROUP}"
+      -g "server string = ZimaBoard File Server"
+      -g "log level = 1"
+    
+    # Additional capabilities for file operations
+    cap_add:
+      - CAP_NET_ADMIN
 
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    hostname: watchtower
-    restart: unless-stopped
-    networks:
-      - homelab
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=86400
-      - WATCHTOWER_LABEL_ENABLE=true
-      - TZ=UTC
-    command: --schedule "0 0 4 * * *"
+  ################################################################################
+  # Optional: Uptime Kuma - Network Monitoring
+  # Uncomment the section below to enable Uptime Kuma for monitoring services
+  ################################################################################
+  
+  # uptime-kuma:
+  #   image: louislam/uptime-kuma:latest
+  #   container_name: uptime-kuma
+  #   hostname: uptime-kuma
+  #   restart: unless-stopped
+  #   
+  #   # Network Configuration
+  #   networks:
+  #     homelab:
+  #       ipv4_address: ${UPTIME_KUMA_DOCKER_IP:-172.20.0.10}
+  #   
+  #   # Port Mappings
+  #   ports:
+  #     - "${UPTIME_KUMA_PORT:-3001}:3001/tcp"  # Web interface
+  #   
+  #   # Volume Mappings
+  #   volumes:
+  #     - ./data/uptime-kuma:/app/data  # Monitoring data and configuration
+  #   
+  #   # Environment Variables
+  #   environment:
+  #     - TZ=${TIMEZONE:-UTC}
+  #   
+  #   # Security: Read-only root filesystem
+  #   read_only: false  # Uptime Kuma needs write access to /app
 
-  homepage:
-    image: ghcr.io/gethomepage/homepage:latest
-    container_name: homepage
-    hostname: homepage
-    restart: unless-stopped
-    networks:
-      homelab:
-        ipv4_address: 172.20.0.5
-    ports:
-      - "3001:3000"
-    volumes:
-      - ./config/homepage:/app/config
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - TZ=UTC
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+  ################################################################################
+  # Optional: CrowdSec - Intrusion Prevention System
+  # Uncomment the section below to enable CrowdSec for security monitoring
+  ################################################################################
+  
+  # crowdsec:
+  #   image: crowdsecurity/crowdsec:latest
+  #   container_name: crowdsec
+  #   hostname: crowdsec
+  #   restart: unless-stopped
+  #   
+  #   # Network Configuration
+  #   networks:
+  #     homelab:
+  #       ipv4_address: ${CROWDSEC_DOCKER_IP:-172.20.0.11}
+  #   
+  #   # Port Mappings
+  #   ports:
+  #     - "${CROWDSEC_API_PORT:-8080}:8080/tcp"  # API port
+  #   
+  #   # Volume Mappings
+  #   volumes:
+  #     - ./data/crowdsec/config:/etc/crowdsec       # Configuration
+  #     - ./data/crowdsec/data:/var/lib/crowdsec/data  # Database
+  #     - /var/log:/var/log:ro                       # System logs (read-only)
+  #   
+  #   # Environment Variables
+  #   environment:
+  #     - TZ=${TIMEZONE:-UTC}
+  #     - COLLECTIONS=crowdsecurity/linux crowdsecurity/sshd crowdsecurity/http-cve
+  #   
+  #   # Security capabilities
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_RAW
 
 ################################################################################
-# Usage Instructions:
-# 
-# 1. Create required directories:
-#    sudo mkdir -p /mnt/ssd-data/{adguard,nextcloud}
-#    sudo mkdir -p /mnt/hdd-cache/nginx
-#    sudo mkdir -p config/{adguard,nginx,nextcloud,homepage}
+# USAGE INSTRUCTIONS
+################################################################################
 #
-# 2. Set environment variables:
+# 1. PREPARE STORAGE:
+#    Ensure your storage is mounted:
+#    - 2TB SSD at /mnt/ssd (or your configured path)
+#    - 500GB HDD at /mnt/hdd (or your configured path)
+#
+#    Create required directories:
+#    sudo mkdir -p /mnt/ssd/fileshare
+#    sudo mkdir -p /mnt/hdd/lancache /mnt/hdd/lancache-logs
+#    sudo chmod -R 777 /mnt/ssd/fileshare /mnt/hdd/lancache
+#
+# 2. CONFIGURE ENVIRONMENT:
 #    cp .env.example .env
 #    nano .env
+#    
+#    Update at minimum:
+#    - SERVER_IP (your ZimaBoard's IP, e.g., 192.168.8.2)
+#    - DATA_PATH_SSD (e.g., /mnt/ssd)
+#    - DATA_PATH_HDD (e.g., /mnt/hdd)
+#    - TIMEZONE (e.g., America/New_York)
 #
-# 3. Deploy the stack:
+# 3. DEPLOY SERVICES:
 #    docker-compose up -d
 #
-# 4. Access services:
-#    - Dashboard: http://your-ip:3001
-#    - AdGuard: http://your-ip:3000
-#    - Nextcloud: http://your-ip:8080
-#    - Nginx: http://your-ip
+# 4. CHECK STATUS:
+#    docker-compose ps
+#    docker-compose logs -f
 #
-# Note: This is an alternative to the native install.sh script.
-# Use either this Docker method OR the native installation, not both.
+# 5. ACCESS SERVICES:
+#    - AdGuard Home: http://YOUR-SERVER-IP:3000
+#    - Samba Share: \\YOUR-SERVER-IP\Shared (Windows) or smb://YOUR-SERVER-IP/Shared (Mac/Linux)
+#    - Lancache: Transparent (works through DNS rewrites)
+#
+# 6. ENABLE OPTIONAL SERVICES:
+#    Edit this file and uncomment the uptime-kuma or crowdsec sections
+#    Then run: docker-compose up -d
+#
+################################################################################
+
+################################################################################
+# NETWORKING NOTES
+################################################################################
+#
+# Static IPs vs Host Network Mode:
+# 
+# This compose file uses bridge networking with static IPs because:
+# - AdGuard and Lancache both need port 53 (DNS)
+# - Better isolation between services
+# - Easier to manage and troubleshoot
+# 
+# Alternative (Host Network Mode):
+# If you want better performance, you can use network_mode: host for AdGuard:
+# 
+#   adguard:
+#     network_mode: host
+#     # Remove ports: section (not needed with host mode)
+#     # Remove networks: section (not used with host mode)
+# 
+# Pros: Better DNS performance, direct access to host network
+# Cons: Less isolation, ports directly on host, potential conflicts
+#
 ################################################################################
