@@ -9,7 +9,7 @@
 # Or: curl -sSL https://raw.githubusercontent.com/th3cavalry/zimaboard-2-home-lab/main/install.sh | sudo bash
 ################################################################################
 
-set -euo pipefail
+set -e  # Exit on error, but allow more flexibility
 
 # Colors for output
 RED='\033[0;31m'
@@ -115,17 +115,30 @@ get_system_ip() {
 install_system_packages() {
     print_info "📦 Installing system packages..."
     
-    # Update package lists
-    apt update
+    echo "DEBUG: Starting package installation..."
     
-    # Install essential packages
-    apt install -y \
+    # Update package lists
+    echo "DEBUG: Updating package lists..."
+    if ! apt update; then
+        print_error "Failed to update package lists"
+        return 1
+    fi
+    
+    echo "DEBUG: Installing essential packages..."
+    # Install essential packages with timeout
+    export DEBIAN_FRONTEND=noninteractive
+    
+    if ! timeout 300 apt install -y \
         curl wget git htop net-tools \
         ufw fail2ban nginx \
         php8.3-fpm php8.3-zip php8.3-gd php8.3-mbstring \
         php8.3-curl php8.3-xml php8.3-bcmath php8.3-sqlite3 \
-        unzip software-properties-common
+        unzip software-properties-common; then
+        print_error "Package installation failed or timed out"
+        return 1
+    fi
     
+    echo "DEBUG: Package installation completed successfully"
     print_success "✅ System packages installed"
 }
 
@@ -178,20 +191,41 @@ setup_storage() {
 install_adguard() {
     print_info "🛡️ Installing AdGuard Home..."
     
-    # Download and install AdGuard Home
-    cd /tmp
-    curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
+    echo "DEBUG: Starting AdGuard Home installation..."
     
-    # Configure data directory
-    if [[ ! -d /opt/AdGuardHome ]]; then
-        print_warning "AdGuard Home not installed in expected location"
+    # Download and install AdGuard Home with timeout
+    cd /tmp
+    echo "DEBUG: Downloading AdGuard Home installer..."
+    
+    if ! timeout 120 curl -sSL https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh -o adguard-install.sh; then
+        print_error "Failed to download AdGuard Home installer"
         return 1
     fi
     
-    # Start AdGuard Home
-    systemctl enable AdGuardHome 2>/dev/null || true
-    systemctl start AdGuardHome 2>/dev/null || true
+    echo "DEBUG: Running AdGuard Home installer..."
+    if ! timeout 300 bash adguard-install.sh -v; then
+        print_warning "AdGuard Home installation may have failed"
+    fi
     
+    echo "DEBUG: Checking AdGuard Home installation..."
+    # Configure data directory
+    if [[ ! -d /opt/AdGuardHome ]]; then
+        print_warning "AdGuard Home not installed in expected location, trying alternative..."
+        # Try alternative installation
+        if command -v AdGuardHome >/dev/null 2>&1; then
+            echo "DEBUG: AdGuard Home binary found in PATH"
+        else
+            print_warning "AdGuard Home installation uncertain"
+            return 1
+        fi
+    fi
+    
+    echo "DEBUG: Starting AdGuard Home service..."
+    # Start AdGuard Home
+    systemctl enable AdGuardHome 2>/dev/null || print_warning "Could not enable AdGuardHome service"
+    systemctl start AdGuardHome 2>/dev/null || print_warning "Could not start AdGuardHome service"
+    
+    echo "DEBUG: AdGuard Home installation completed"
     print_success "✅ AdGuard Home installed"
 }
 
@@ -381,27 +415,38 @@ EOF
 ################################################################################
 
 run_installation() {
+    echo "DEBUG: Entering run_installation function..."
+    
     print_info "🚀 Starting ZimaBoard 2 Homelab Installation"
     echo ""
     
+    echo "DEBUG: Getting system IP..."
     # Get system IP early
     get_system_ip
+    echo "DEBUG: System IP detected as: $SYSTEM_IP"
     
     # Phase 1: System preparation
+    echo "DEBUG: Starting Phase 1..."
     print_info "📋 Phase 1: System Preparation"
+    echo "DEBUG: Installing system packages..."
     install_system_packages
+    echo "DEBUG: Configuring firewall..."
     configure_firewall
     print_success "✅ System preparation completed"
     echo ""
     
     # Phase 2: Storage setup
+    echo "DEBUG: Starting Phase 2..."
     print_info "💾 Phase 2: Storage Configuration"
+    echo "DEBUG: Setting up storage..."
     setup_storage
     print_success "✅ Storage configuration completed"
     echo ""
     
     # Phase 3: AdGuard Home
+    echo "DEBUG: Starting Phase 3..."
     print_info "🛡️ Phase 3: AdGuard Home Installation"
+    echo "DEBUG: Installing AdGuard Home..."
     if install_adguard; then
         print_success "✅ AdGuard Home installation completed"
     else
@@ -410,19 +455,25 @@ run_installation() {
     echo ""
     
     # Phase 4: Nextcloud
+    echo "DEBUG: Starting Phase 4..."
     print_info "☁️ Phase 4: Nextcloud Installation"
+    echo "DEBUG: Installing Nextcloud..."
     install_nextcloud
     print_success "✅ Nextcloud installation completed"
     echo ""
     
     # Phase 5: Web server
+    echo "DEBUG: Starting Phase 5..."
     print_info "🌐 Phase 5: Web Server and Dashboard"
+    echo "DEBUG: Configuring Nginx..."
     configure_nginx
     print_success "✅ Web server and dashboard completed"
     echo ""
     
     # Final phase: Summary
+    echo "DEBUG: Generating installation summary..."
     installation_complete
+    echo "DEBUG: Installation process finished successfully"
 }
 
 installation_complete() {
@@ -466,16 +517,26 @@ installation_complete() {
 }
 
 main() {
+    # Enable debug output
+    echo "DEBUG: Starting main function..."
+    
     print_header
+    
+    echo "DEBUG: Checking root privileges..."
     check_root
+    
+    echo "DEBUG: Checking Ubuntu version..."
     check_ubuntu
+    
+    echo "DEBUG: Detecting architecture..."
     detect_architecture
     
+    echo "DEBUG: Gathering system information..."
     print_info "System Information:"
-    echo "  - OS: $(lsb_release -d | cut -f2)"
+    echo "  - OS: $(lsb_release -d | cut -f2 2>/dev/null || echo 'Unknown')"
     echo "  - Architecture: $ARCH_TYPE"
-    echo "  - Memory: $(free -h | awk '/^Mem:/ {print $2}')"
-    echo "  - Storage: $(df -h / | awk 'NR==2 {print $4}') available"
+    echo "  - Memory: $(free -h | awk '/^Mem:/ {print $2}' 2>/dev/null || echo 'Unknown')"
+    echo "  - Storage: $(df -h / | awk 'NR==2 {print $4}' 2>/dev/null || echo 'Unknown') available"
     echo ""
     
     print_info "This will install a complete security homelab with:"
@@ -486,15 +547,28 @@ main() {
     echo "  📊 System optimization for eMMC longevity"
     echo ""
     
-    read -p "Continue with installation? (y/N): " confirm
+    echo "DEBUG: About to prompt for confirmation..."
     
-    if [[ "$confirm" != "y" ]]; then
+    # Handle non-interactive mode
+    if [[ "${DEBIAN_FRONTEND:-}" == "noninteractive" ]] || [[ ! -t 0 ]]; then
+        print_info "Running in non-interactive mode - proceeding with installation"
+        confirm="y"
+    else
+        read -p "Continue with installation? (y/N): " confirm
+    fi
+    
+    echo "DEBUG: User response: $confirm"
+    
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
         print_info "Installation cancelled"
         exit 0
     fi
     
+    echo "DEBUG: Starting installation process..."
     # Start installation
     run_installation
+    
+    echo "DEBUG: Installation process completed"
 }
 
 ################################################################################
