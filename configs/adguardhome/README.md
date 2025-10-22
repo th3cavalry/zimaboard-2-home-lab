@@ -15,6 +15,7 @@ The pre-configured file (`AdGuardHome.yaml`) already has:
 - ✅ **DNS Server**: Bound to `0.0.0.0:53` (all interfaces)
 - ✅ **Default Upstream DNS**: Cloudflare (1.1.1.1, 1.0.0.1) and Google (8.8.8.8, 8.8.4.4)
 - ✅ **Basic Ad Blocking Filters**: AdGuard DNS filter and AdAway Default Blocklist
+- ✅ **DNS Rewrites for Lancache**: Pre-configured for Steam, Epic Games, Origin, Xbox, PlayStation, Battle.net, and Windows Update
 - ✅ **Sensible Defaults**: Cache size, rate limiting, and security settings
 
 ### How to Use
@@ -116,6 +117,64 @@ If you want to start completely fresh and go through the web wizard (not recomme
    - After setup completes, manually edit the config file to change to `0.0.0.0`
 
 **Note**: It's much easier to use the pre-configured file provided in this repository!
+
+## DNS Rewrites for Lancache (Pre-Configured)
+
+**✅ LANCACHE INTEGRATION READY OUT-OF-THE-BOX**
+
+The pre-configured `AdGuardHome.yaml` file includes DNS rewrites for popular gaming and content delivery services. This means **Lancache will work immediately** after starting the services.
+
+### Pre-Configured DNS Rewrites
+
+The following domains are automatically redirected to your server IP (default: `192.168.8.2`):
+
+| Service | Domain Pattern | Purpose |
+|---------|----------------|---------|
+| **Steam** | `*.steamcontent.com` | Steam game downloads |
+| **Epic Games** | `*.download.epicgames.com` | Epic Games Store downloads |
+| **Origin (EA)** | `*.origin.com` | Origin/EA game downloads |
+| **Xbox Live** | `*.xboxlive.com` | Xbox game downloads |
+| **PlayStation** | `*.playstation.net` | PlayStation Network downloads |
+| **Battle.net** | `*.blizzard.com` | Blizzard/Battle.net downloads |
+| **Windows Update** | `*.windowsupdate.com` | Windows OS updates |
+
+### Important: Update Server IP If Needed
+
+⚠️ **If your server IP is different from `192.168.8.2`**, you must update the IP addresses in the DNS rewrites:
+
+1. **Before starting AdGuard Home**, edit the configuration file:
+   ```bash
+   nano configs/adguardhome/AdGuardHome.yaml
+   ```
+
+2. **Find the `dns.rewrites` section** (around line 148) and update all IP addresses from `192.168.8.2` to your actual server IP
+
+3. **Save and start AdGuard Home**
+
+### Verify DNS Rewrites Are Working
+
+After starting AdGuard Home:
+
+1. **Check via web interface**:
+   - Go to **Filters → DNS rewrites**
+   - You should see all 7 pre-configured rewrites listed
+
+2. **Test via command line**:
+   ```bash
+   # Query a Lancache domain through your AdGuard DNS
+   nslookup steamcontent.com 192.168.8.2
+   
+   # Expected output should show your server IP (e.g., 192.168.8.2)
+   ```
+
+3. **If DNS rewrites don't appear**, the configuration may not have loaded properly. Check AdGuard Home logs:
+   ```bash
+   # For Docker:
+   docker compose logs adguardhome
+   
+   # For Bare-metal:
+   sudo journalctl -u AdGuardHome -f
+   ```
 
 ## Troubleshooting
 
