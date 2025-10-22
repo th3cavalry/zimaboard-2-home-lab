@@ -67,6 +67,46 @@ bash scripts/health-check.sh
 
 ---
 
+### 4. reset-and-redeploy.sh
+**Purpose**: Complete reset and redeploy with the latest version from GitHub
+
+**Usage**:
+```bash
+sudo bash scripts/reset-and-redeploy.sh
+```
+
+**What it does**:
+- Stops all running Docker services
+- Removes all containers and volumes
+- Cleans up old configurations (configs and data directories)
+- Pulls latest code from GitHub (resets to origin/main)
+- Backs up your .env file (preserves your settings)
+- Downloads latest Docker images
+- Recreates required directories
+- Redeploys all services with fresh configuration
+
+**What it PRESERVES**:
+- ✓ Your .env file (backed up with timestamp)
+- ✓ /mnt/ssd/fileshare (Samba file shares)
+- ✓ /mnt/hdd/lancache (Lancache cache data)
+- ✓ /mnt/hdd/lancache-logs (Lancache logs)
+
+**What it DELETES**:
+- ✗ All running containers
+- ✗ All Docker volumes
+- ✗ AdGuard Home configuration in ./data/adguardhome
+- ✗ AdGuard Home settings in ./configs/adguardhome
+- ✗ All other data in ./data and ./configs directories
+
+**When to use**: 
+- When you want to update to the latest repository version
+- When you need to start fresh due to configuration issues
+- When major updates have been made to the repository
+
+**⚠️ WARNING**: This script will delete all AdGuard Home settings, configurations, and container data. Make sure you have backups if needed! You will need to reconfigure AdGuard Home after running this script.
+
+---
+
 ## Typical Workflow
 
 ### Initial Setup
@@ -80,10 +120,16 @@ bash scripts/health-check.sh
 - Run `bash scripts/health-check.sh` periodically to verify all services are healthy
 - Run `bash scripts/validate-env.sh` after making changes to `.env`
 
+### Updating to Latest Version
+- Run `sudo bash scripts/reset-and-redeploy.sh` to update to the latest repository version
+- This will pull latest code, update Docker images, and redeploy all services
+- Your .env file will be backed up and preserved
+
 ### Troubleshooting
 - If services aren't working, run `bash scripts/health-check.sh` to identify issues
 - Check Docker logs: `docker compose logs -f`
 - Restart services: `docker compose restart`
+- For a complete fresh start: `sudo bash scripts/reset-and-redeploy.sh`
 
 ---
 
