@@ -679,8 +679,26 @@ These steps apply to **both Path A and Path B** after deployment.
 1. Open your web browser
 2. Navigate to: `http://192.168.8.2:3000`
 3. Follow the initial setup wizard:
-   - **Admin Web Interface**: Port 3000 (already set)
-   - **DNS Server**: Port 53 (already set)
+   
+   **⚠️ IMPORTANT - IP Binding Configuration:**
+   
+   During the setup wizard, you'll be asked to configure binding addresses. Use these values:
+   
+   - **Admin Web Interface**:
+     - Listen Interface: `All interfaces (0.0.0.0)`
+     - Port: `3000` (keep default)
+   
+   - **DNS Server**:
+     - Listen Interface: `All interfaces (0.0.0.0)`
+     - Port: `53` (keep default)
+   
+   **Why 0.0.0.0?** This tells AdGuard Home to listen on all network interfaces, making it accessible from:
+   - The host machine (192.168.8.2)
+   - Other devices on your network
+   - Inside the Docker container (for containerized installations)
+   
+   **Alternative (Bare-Metal Only):** You can use your ZimaBoard's specific IP (192.168.8.2) instead of 0.0.0.0, but 0.0.0.0 is more flexible and recommended.
+   
    - **Create admin username and password** (save these!)
    - Click "Next" and "Open Dashboard"
 
@@ -1242,6 +1260,84 @@ sudo nano /etc/systemd/resolved.conf
 # Add: DNSStubListener=no
 sudo systemctl restart systemd-resolved
 ```
+
+#### Cannot Access AdGuard Home Web Interface
+
+**Symptoms:**
+- Cannot reach `http://192.168.8.2:3000` after installation
+- Browser shows "Connection refused" or "Unable to connect"
+- AdGuard Home container/service is running but not accessible
+
+**Cause:** AdGuard Home is not bound to the correct network interface during initial setup.
+
+**Solution:**
+
+1. **For Path A (Docker):**
+   
+   a. Stop AdGuard Home:
+   ```bash
+   docker compose stop adguard
+   ```
+   
+   b. Remove the existing configuration:
+   ```bash
+   rm -rf ./configs/adguardhome/AdGuardHome.yaml
+   rm -rf ./data/adguardhome/*
+   ```
+   
+   c. Start AdGuard Home again:
+   ```bash
+   docker compose up -d adguard
+   ```
+   
+   d. Navigate to `http://192.168.8.2:3000`
+   
+   e. During the setup wizard, make sure to set:
+   - **Admin Web Interface**: Listen on `All interfaces (0.0.0.0)`, Port `3000`
+   - **DNS Server**: Listen on `All interfaces (0.0.0.0)`, Port `53`
+
+2. **For Path B (Bare-Metal):**
+   
+   a. Stop AdGuard Home:
+   ```bash
+   sudo systemctl stop AdGuardHome
+   ```
+   
+   b. Edit the configuration:
+   ```bash
+   sudo nano /opt/AdGuardHome/AdGuardHome.yaml
+   ```
+   
+   c. Find the `bind_host` settings and change them to:
+   ```yaml
+   bind_host: 0.0.0.0
+   ```
+   
+   d. Save and restart:
+   ```bash
+   sudo systemctl start AdGuardHome
+   ```
+
+3. **Verify the service is listening:**
+   ```bash
+   # Check if port 3000 is listening on all interfaces
+   sudo netstat -tulpn | grep :3000
+   # Should show: 0.0.0.0:3000
+   
+   # Or use ss command
+   sudo ss -tulpn | grep :3000
+   ```
+
+4. **Check firewall (if enabled):**
+   ```bash
+   # Check if ufw is active
+   sudo ufw status
+   
+   # If active, allow ports
+   sudo ufw allow 3000/tcp
+   sudo ufw allow 53/tcp
+   sudo ufw allow 53/udp
+   ```
 
 #### AdGuard Home Not Blocking
 
