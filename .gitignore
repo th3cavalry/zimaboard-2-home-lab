@@ -33,6 +33,12 @@ AdGuardHome.yaml
 !configs/adguardhome/AdGuardHome.yaml
 adguard_config.yaml
 
+# Generated AdGuard Home runtime configuration
+data/adguardhome/AdGuardHome.yaml
+
+# CrowdSec runtime data
+data/crowdsec/
+
 # Nextcloud configuration
 nextcloud_config.php
 config.php

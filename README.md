@@ -72,6 +72,14 @@ This setup is optimized for the following specifications:
 │   ├── docker-compose.hybrid.yml # Path B: Docker for Lancache/Optional
 │   └── .env.hybrid.example   # Path B: Docker environment config
 │
+├── scripts/                  # Helper scripts for setup and maintenance
+│   ├── validate-env.sh       # Validate environment configuration
+│   ├── setup-storage.sh      # Automate storage setup and formatting
+│   └── health-check.sh       # Verify all services are running correctly
+│
+├── docs/                     # Additional documentation
+│   └── STREAMING_ADS.md      # Important info about streaming ad blocking
+│
 └── configs/
     └── samba/
         └── smb.conf          # Pre-configured Samba config file
@@ -117,9 +125,15 @@ The 64GB eMMC has limited write cycles (typically 3,000-5,000 cycles). To maximi
 
 We'll implement these optimizations during setup.
 
-**💡 Advanced Setup Option:**
+**💡 OPTIONAL Advanced Setup:**
 
-For **maximum eMMC longevity**, consider the advanced partitioning setup in [EMMC_SSD_SETUP.md](EMMC_SSD_SETUP.md). This approach installs Ubuntu with a custom partition layout that keeps only the core OS on eMMC (5-10GB) while directing **ALL write-intensive operations** (/home, /var, /tmp) to the SSD. This requires more advanced setup during installation but provides the best protection for eMMC lifespan. The standard setup described in this README is sufficient for most users.
+For **maximum eMMC longevity**, consider the advanced partitioning setup in [EMMC_SSD_SETUP.md](EMMC_SSD_SETUP.md). 
+
+**⚠️ This advanced setup is OPTIONAL and NOT required for either Path A or Path B.**
+
+The advanced setup installs Ubuntu with a custom partition layout that keeps only the core OS on eMMC (5-10GB) while directing **ALL write-intensive operations** (/home, /var, /tmp) to the SSD. This requires more advanced setup during installation but provides the best protection for eMMC lifespan.
+
+**For most users**: The standard setup described in this README (with Docker data moved to SSD in Step 1.3.6) provides sufficient eMMC protection and is much simpler to implement.
 
 ### Step 1.2: Install Docker and Docker Compose
 
@@ -448,6 +462,14 @@ LANCACHE_MAX_SIZE=400
 
 Save and exit (Ctrl+X, then Y, then Enter).
 
+**💡 Tip**: After configuring your `.env` file, you can validate it using the helper script:
+
+```bash
+bash scripts/validate-env.sh
+```
+
+This will check that all required variables are set and that your storage paths are accessible.
+
 ### Step 3.2: Disable systemd-resolved (Critical for DNS Port 53)
 
 **⚠️ IMPORTANT**: Ubuntu's `systemd-resolved` service runs on port 53 by default, which will conflict with AdGuard Home's DNS server. You **must** disable it before deploying the services.
@@ -540,6 +562,22 @@ samba               dperson/samba:latest               Up 10 seconds
 ```
 
 ### Step 3.4: Verify Service Health
+
+**💡 Quick Health Check**: Use the automated health check script to verify all services:
+
+```bash
+bash scripts/health-check.sh
+```
+
+This script automatically checks:
+- Docker services are running
+- Ports are accessible
+- DNS resolution is working
+- Lancache is responding
+- Samba is accessible
+- Storage mounts are correct
+
+**Manual Verification** (optional):
 
 ```bash
 # Check AdGuard Home
@@ -742,59 +780,22 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 #### 🎬 Attempting to Block Streaming Ads
 
-**⚠️⚠️⚠️ CRITICAL WARNING ABOUT STREAMING AD BLOCKING ⚠️⚠️⚠️**
+**⚠️ IMPORTANT**: Blocking ads on streaming services (Netflix, Hulu, YouTube, etc.) is **extremely difficult and unreliable**. 
 
-Blocking ads on streaming services (Netflix, Hulu, HBO Max, Peacock, YouTube, etc.) is **EXTREMELY DIFFICULT AND UNRELIABLE**. Here's why:
+DNS-level blocking typically:
+- Has a success rate of only 20-40% at best
+- Often breaks video playback entirely
+- May violate service terms of use
 
-- **Same-Domain Serving**: Streaming services intentionally serve ads from the same domains as content
-- **Active Countermeasures**: Services actively detect and circumvent ad blocking
-- **Frequent Changes**: Ad delivery methods change constantly
-- **Potential Breakage**: Blocking attempts **WILL BREAK** video playback entirely
-- **App vs Browser**: Mobile apps are harder to block than web browsers
-- **Limited Effectiveness**: Even with the best filters, success rates are **20-40% at best**
-- **Terms of Service**: May violate service terms and risk account suspension
+**For detailed information**, including:
+- Why streaming ad blocking is so difficult
+- Service-by-service breakdown
+- Alternative approaches (browser extensions, premium subscriptions)
+- Troubleshooting broken services
 
-**The Reality:**
-- YouTube ads: Very difficult, often breaks playback
-- Netflix ads: Nearly impossible without breaking service
-- Hulu ads: Extremely difficult, high breakage risk
-- Cable/Live TV apps: Almost never works
+**See the comprehensive guide**: [docs/STREAMING_ADS.md](docs/STREAMING_ADS.md)
 
-**If you still want to try (at your own risk):**
-
-1. Go to **Filters → DNS blocklists** → "Add blocklist"
-2. Add these **experimental** lists:
-
-```
-https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.plus.txt
-https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/fake.txt
-https://blocklistproject.github.io/Lists/ads.txt
-```
-
-3. Go to **Filters → Custom filtering rules**
-4. Add these regex patterns (**use with extreme caution**):
-
-```
-||doubleclick.net^
-||googlesyndication.com^
-||googleadservices.com^
-||youtube.com/api/stats/ads^
-||youtube.com/ptracking^
-```
-
-**Recommended Approach Instead:**
-
-- Use browser extensions like **uBlock Origin** for web-based streaming
-- Consider **YouTube Premium** for ad-free YouTube
-- Accept that DNS-level blocking **cannot** effectively block streaming ads
-- Focus on blocking tracking and malware instead
-
-**If streaming services break:**
-1. Go to **Settings → DNS settings**
-2. Add the broken domain to the "DNS allowlist"
-3. Or temporarily disable AdGuard Home:
-   - **Path A**: `docker compose stop adguardhome`
-   - **Path B**: `sudo systemctl stop AdGuardHome`
+**Quick recommendation**: Use browser extensions like **uBlock Origin** instead of DNS-level blocking for streaming services.
 
 ### Step 5.2: Verify Lancache Integration with AdGuard Home
 

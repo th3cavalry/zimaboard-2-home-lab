@@ -10,8 +10,11 @@
 #
 # Prerequisites:
 # 1. Docker and Docker Compose installed
-# 2. Storage devices mounted (2TB SSD, 500GB HDD)
+# 2. Storage devices mounted (2TB SSD at /mnt/ssd, 500GB HDD at /mnt/hdd)
 # 3. .env file configured with your settings
+# 
+# Note: The advanced eMMC partitioning setup (EMMC_SSD_SETUP.md) is OPTIONAL.
+#       The standard setup with Docker data on SSD is sufficient for most users.
 ################################################################################
 
 networks:
@@ -78,8 +81,8 @@ services:
         ipv4_address: ${LANCACHE_DOCKER_IP:-172.20.0.3}
     
     # Port Mappings
-    # Note: These ports conflict with AdGuard if using host networking
-    # Keep on bridge network with static IPs for proper isolation
+    # Note: Lancache uses ports 80/443 which are different from AdGuard's port 53
+    # Using bridge network with static IPs for proper service isolation
     ports:
       - "${LANCACHE_HTTP_PORT:-8080}:80/tcp"    # HTTP cache port
       - "${LANCACHE_HTTPS_PORT:-8443}:443/tcp"  # HTTPS cache port
@@ -96,7 +99,7 @@ services:
       - CACHE_MEM_SIZE=500m                          # Memory for cache index
       - CACHE_DISK_SIZE=${LANCACHE_MAX_SIZE:-400}g   # Max cache size on disk
       - CACHE_MAX_AGE=3650d                          # Keep cached content for 10 years
-      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} # Fallback DNS
+      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} ${UPSTREAM_DNS_SECONDARY:-1.0.0.1} # Fallback DNS servers
     
     # Logging Configuration
     logging:
