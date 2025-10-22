@@ -140,6 +140,38 @@ dns:
   
   # Serve DNS on additional ports
   local_domain_name: lan
+  
+  # DNS Rewrites for Lancache Integration
+  # These rewrites redirect game download domains to your local Lancache server
+  # IMPORTANT: Update the IP addresses below if your server IP is different from 192.168.8.2
+  rewrites:
+    # Steam Content Delivery
+    - domain: "*.steamcontent.com"
+      answer: "192.168.8.2"
+    
+    # Epic Games Downloads
+    - domain: "*.download.epicgames.com"
+      answer: "192.168.8.2"
+    
+    # Origin (EA) Downloads
+    - domain: "*.origin.com"
+      answer: "192.168.8.2"
+    
+    # Xbox Live Downloads
+    - domain: "*.xboxlive.com"
+      answer: "192.168.8.2"
+    
+    # PlayStation Network Downloads
+    - domain: "*.playstation.net"
+      answer: "192.168.8.2"
+    
+    # Battle.net (Blizzard) Downloads
+    - domain: "*.blizzard.com"
+      answer: "192.168.8.2"
+    
+    # Windows Update Downloads
+    - domain: "*.windowsupdate.com"
+      answer: "192.168.8.2"
 
 # TLS configuration (for DNS-over-TLS and DNS-over-HTTPS)
 tls:
@@ -228,7 +260,7 @@ schema_version: 20
 #
 # After completing the initial setup wizard, you can:
 # 1. Add more DNS blocklists via Filters → DNS blocklists
-# 2. Configure DNS rewrites for Lancache via Filters → DNS rewrites
+# 2. Verify DNS rewrites for Lancache via Filters → DNS rewrites (already pre-configured)
 # 3. Adjust upstream DNS servers via Settings → DNS settings
 # 4. Configure client settings and custom filtering rules
 #
@@ -237,9 +269,16 @@ schema_version: 20
 # - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 # - https://blocklistproject.github.io/Lists/ads.txt
 #
-# For Lancache integration, add DNS rewrites in the web interface:
+# ✅ Lancache DNS Rewrites (Pre-Configured):
+# The following DNS rewrites are already configured above in the dns.rewrites section:
 # - *.steamcontent.com → 192.168.8.2 (or your server IP)
 # - *.download.epicgames.com → 192.168.8.2
 # - *.origin.com → 192.168.8.2
-# - And others as documented in the main README
+# - *.xboxlive.com → 192.168.8.2
+# - *.playstation.net → 192.168.8.2
+# - *.blizzard.com → 192.168.8.2
+# - *.windowsupdate.com → 192.168.8.2
+#
+# IMPORTANT: If your server IP is different from 192.168.8.2, update the IP addresses
+# in the dns.rewrites section above before starting AdGuard Home.
 ################################################################################

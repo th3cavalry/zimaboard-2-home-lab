@@ -796,59 +796,56 @@ https://blocklistproject.github.io/Lists/ads.txt
    - **Path A**: `docker compose stop adguardhome`
    - **Path B**: `sudo systemctl stop AdGuardHome`
 
-### Step 5.2: Configure Lancache Integration with AdGuard Home
+### Step 5.2: Verify Lancache Integration with AdGuard Home
 
-Lancache works by intercepting requests for game content and serving them from your local cache. You need to configure DNS rewrites in AdGuard Home.
+**✅ LANCACHE DNS REWRITES ARE PRE-CONFIGURED!**
 
-#### Configure DNS Rewrites
+Good news! The `AdGuardHome.yaml` configuration file in this repository already includes DNS rewrites for all major gaming and content delivery services. **You don't need to manually configure DNS rewrites** - Lancache will work immediately after deployment.
 
-1. In AdGuard Home, go to **Filters → DNS rewrites**
-2. Click "Add DNS rewrite"
-3. Add the following entries (one at a time):
+#### Pre-Configured Services
 
-**Steam:**
-```
-Domain: *.steamcontent.com
-Answer: 192.168.8.2
-```
+The following services are already configured to use your Lancache server (default IP: `192.168.8.2`):
 
-**Epic Games:**
-```
-Domain: *.download.epicgames.com
-Answer: 192.168.8.2
-```
+| Service | Domain Pattern |
+|---------|----------------|
+| **Steam** | `*.steamcontent.com` |
+| **Epic Games** | `*.download.epicgames.com` |
+| **Origin (EA)** | `*.origin.com` |
+| **Xbox Live** | `*.xboxlive.com` |
+| **PlayStation Network** | `*.playstation.net` |
+| **Battle.net (Blizzard)** | `*.blizzard.com` |
+| **Windows Updates** | `*.windowsupdate.com` |
 
-**Origin (EA):**
-```
-Domain: *.origin.com
-Answer: 192.168.8.2
-```
+#### Verify DNS Rewrites Are Active
 
-**Xbox Live:**
-```
-Domain: *.xboxlive.com
-Answer: 192.168.8.2
-```
+1. **Via Web Interface**:
+   - Log into AdGuard Home at `http://192.168.8.2:3000`
+   - Go to **Filters → DNS rewrites**
+   - You should see all 7 pre-configured rewrites listed
 
-**PlayStation Network:**
-```
-Domain: *.playstation.net
-Answer: 192.168.8.2
-```
+2. **Via Command Line**:
+   ```bash
+   # Test DNS resolution for a Lancache domain
+   nslookup steamcontent.com 192.168.8.2
+   
+   # Expected output should show your server IP (e.g., 192.168.8.2)
+   # If you see "No answer", check the troubleshooting steps below
+   ```
 
-**Battle.net (Blizzard):**
-```
-Domain: *.blizzard.com
-Answer: 192.168.8.2
-```
+#### Important: Update Server IP If Different
 
-**Windows Updates:**
-```
-Domain: *.windowsupdate.com
-Answer: 192.168.8.2
-```
+⚠️ **If your server IP is different from `192.168.8.2`**, you must update the DNS rewrites before starting AdGuard Home:
 
-**Note:** Replace `192.168.8.2` with your actual ZimaBoard IP if different.
+1. Edit the configuration file:
+   ```bash
+   nano configs/adguardhome/AdGuardHome.yaml
+   ```
+
+2. Find the `dns.rewrites` section (around line 148)
+
+3. Replace all instances of `192.168.8.2` with your actual server IP
+
+4. Save and start/restart AdGuard Home
 
 #### Verify Lancache is Working
 
