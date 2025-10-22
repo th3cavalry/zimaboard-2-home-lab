@@ -9,6 +9,10 @@ When AdGuard Home is running, this directory will contain:
 - Filter data and cache
 - Session data
 
+## Initial Setup Note
+
+During the first-time setup wizard, make sure to configure AdGuard Home to bind to `0.0.0.0` (all interfaces) to ensure it's accessible from your network. See `configs/adguardhome/README.md` for detailed binding configuration instructions.
+
 ## Backups
 It's recommended to backup this directory periodically if you want to preserve your query history and statistics. However, the main configuration in `configs/adguardhome/` is more critical for disaster recovery.
 
