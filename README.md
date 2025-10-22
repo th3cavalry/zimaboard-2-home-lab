@@ -748,59 +748,22 @@ https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/tif.txt
 
 #### 🎬 Attempting to Block Streaming Ads
 
-**⚠️⚠️⚠️ CRITICAL WARNING ABOUT STREAMING AD BLOCKING ⚠️⚠️⚠️**
+**⚠️ IMPORTANT**: Blocking ads on streaming services (Netflix, Hulu, YouTube, etc.) is **extremely difficult and unreliable**. 
 
-Blocking ads on streaming services (Netflix, Hulu, HBO Max, Peacock, YouTube, etc.) is **EXTREMELY DIFFICULT AND UNRELIABLE**. Here's why:
+DNS-level blocking typically:
+- Has a success rate of only 20-40% at best
+- Often breaks video playback entirely
+- May violate service terms of use
 
-- **Same-Domain Serving**: Streaming services intentionally serve ads from the same domains as content
-- **Active Countermeasures**: Services actively detect and circumvent ad blocking
-- **Frequent Changes**: Ad delivery methods change constantly
-- **Potential Breakage**: Blocking attempts **WILL BREAK** video playback entirely
-- **App vs Browser**: Mobile apps are harder to block than web browsers
-- **Limited Effectiveness**: Even with the best filters, success rates are **20-40% at best**
-- **Terms of Service**: May violate service terms and risk account suspension
+**For detailed information**, including:
+- Why streaming ad blocking is so difficult
+- Service-by-service breakdown
+- Alternative approaches (browser extensions, premium subscriptions)
+- Troubleshooting broken services
 
-**The Reality:**
-- YouTube ads: Very difficult, often breaks playback
-- Netflix ads: Nearly impossible without breaking service
-- Hulu ads: Extremely difficult, high breakage risk
-- Cable/Live TV apps: Almost never works
+**See the comprehensive guide**: [docs/STREAMING_ADS.md](docs/STREAMING_ADS.md)
 
-**If you still want to try (at your own risk):**
-
-1. Go to **Filters → DNS blocklists** → "Add blocklist"
-2. Add these **experimental** lists:
-
-```
-https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.plus.txt
-https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/fake.txt
-https://blocklistproject.github.io/Lists/ads.txt
-```
-
-3. Go to **Filters → Custom filtering rules**
-4. Add these regex patterns (**use with extreme caution**):
-
-```
-||doubleclick.net^
-||googlesyndication.com^
-||googleadservices.com^
-||youtube.com/api/stats/ads^
-||youtube.com/ptracking^
-```
-
-**Recommended Approach Instead:**
-
-- Use browser extensions like **uBlock Origin** for web-based streaming
-- Consider **YouTube Premium** for ad-free YouTube
-- Accept that DNS-level blocking **cannot** effectively block streaming ads
-- Focus on blocking tracking and malware instead
-
-**If streaming services break:**
-1. Go to **Settings → DNS settings**
-2. Add the broken domain to the "DNS allowlist"
-3. Or temporarily disable AdGuard Home:
-   - **Path A**: `docker compose stop adguardhome`
-   - **Path B**: `sudo systemctl stop AdGuardHome`
+**Quick recommendation**: Use browser extensions like **uBlock Origin** instead of DNS-level blocking for streaming services.
 
 ### Step 5.2: Verify Lancache Integration with AdGuard Home
 
