@@ -676,57 +676,60 @@ These steps apply to **both Path A and Path B** after deployment.
 
 #### Initial Setup Wizard
 
-1. Open your web browser
-2. Navigate to: `http://192.168.8.2:3000`
-3. Follow the initial setup wizard:
+**✅ Good News**: This repository includes a **pre-configured `AdGuardHome.yaml`** that already binds to `0.0.0.0` (all interfaces), solving the common issue where the web wizard doesn't allow selecting this option.
+
+1. **Open your web browser**
+2. **Navigate to**: `http://192.168.8.2:3000` (replace with your actual server IP)
+3. **Follow the initial setup wizard**:
    
-   **⚠️ IMPORTANT - IP Binding Configuration:**
+   **📝 Note About Binding Configuration:**
    
-   During the setup wizard, you'll be asked to configure binding addresses. Use these values:
+   The configuration file already has the correct settings:
+   - **Admin Web Interface**: Already bound to `0.0.0.0:3000` (all interfaces)
+   - **DNS Server**: Already bound to `0.0.0.0:53` (all interfaces)
    
-   - **Admin Web Interface**:
-     - Listen Interface: `All interfaces (0.0.0.0)`
-     - Port: `3000` (keep default)
+   You just need to:
+   - **Create admin username and password** (save these!)
+   - Click "Next" and "Open Dashboard"
    
-   - **DNS Server**:
-     - Listen Interface: `All interfaces (0.0.0.0)`
-     - Port: `53` (keep default)
+   **Why pre-configured?** The AdGuard Home web interface setup wizard has a limitation - it doesn't provide an option to manually enter `0.0.0.0` for binding. It only shows specific interface IPs like `127.0.0.1`, `172.20.0.2`, etc. By providing a pre-configured file, we bypass this limitation.
    
-   **Why 0.0.0.0?** This tells AdGuard Home to listen on all network interfaces, making it accessible from:
+   **Why 0.0.0.0?** Binding to `0.0.0.0` means listening on all network interfaces, making AdGuard Home accessible from:
    - The host machine (192.168.8.2)
    - Other devices on your network
    - Inside the Docker container (for containerized installations)
-   
-   **Alternative (Bare-Metal Only):** You can use your ZimaBoard's specific IP (192.168.8.2) instead of 0.0.0.0, but 0.0.0.0 is more flexible and recommended.
-   
-   - **Create admin username and password** (save these!)
-   - Click "Next" and "Open Dashboard"
+   - Maximum flexibility for different network configurations
 
 #### Configure Upstream DNS
 
+**✅ Already Configured**: The pre-configured file includes these upstream DNS servers:
+- Cloudflare: 1.1.1.1, 1.0.0.1
+- Google: 8.8.8.8, 8.8.4.4
+
+You can optionally customize these:
+
 1. Log into AdGuard Home dashboard
 2. Go to **Settings → DNS settings**
-3. In the "Upstream DNS servers" field, add:
-   ```
-   1.1.1.1
-   1.0.0.1
-   8.8.8.8
-   8.8.4.4
-   ```
-4. Enable "Parallel requests" for faster resolution
+3. View or modify the "Upstream DNS servers" field
+4. Enable "Parallel requests" for faster resolution (if not already enabled)
 5. Click "Save"
 
 #### Add DNS Blocklists
 
-AdGuard Home comes with basic filters. To enhance ad blocking:
+**✅ Basic Lists Included**: The pre-configured file already includes:
+- AdGuard DNS filter
+- AdAway Default Blocklist
+
+To enhance ad blocking further:
 
 1. Go to **Filters → DNS blocklists**
-2. Click "Add blocklist" and add these recommended lists:
+2. You'll see the pre-configured lists are already active
+3. Click "Add blocklist" to add these recommended additional lists:
 
 **General Ad Blocking:**
 ```
-https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
-https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
+https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt (already included)
+https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt (already included)
 ```
 
 **Additional Protection:**
@@ -1268,9 +1271,11 @@ sudo systemctl restart systemd-resolved
 - Browser shows "Connection refused" or "Unable to connect"
 - AdGuard Home container/service is running but not accessible
 
-**Cause:** AdGuard Home is not bound to the correct network interface during initial setup.
+**Cause:** AdGuard Home is not bound to the correct network interface.
 
 **Solution:**
+
+**NOTE**: This repository now includes a pre-configured `AdGuardHome.yaml` file that binds to `0.0.0.0` by default. If you're experiencing this issue, the config file may have been modified or replaced.
 
 1. **For Path A (Docker):**
    
@@ -1279,22 +1284,34 @@ sudo systemctl restart systemd-resolved
    docker compose stop adguard
    ```
    
-   b. Remove the existing configuration:
+   b. Check the configuration file:
    ```bash
-   rm -rf ./configs/adguardhome/AdGuardHome.yaml
-   rm -rf ./data/adguardhome/*
+   cat ./configs/adguardhome/AdGuardHome.yaml | grep bind_host
    ```
    
-   c. Start AdGuard Home again:
+   c. If `bind_host` is not `0.0.0.0`, restore the pre-configured file:
    ```bash
-   docker compose up -d adguard
+   # Backup your current config (if you have custom settings)
+   cp ./configs/adguardhome/AdGuardHome.yaml ./configs/adguardhome/AdGuardHome.yaml.backup
+   
+   # Restore from git (this gets the pre-configured version)
+   git checkout configs/adguardhome/AdGuardHome.yaml
    ```
    
-   d. Navigate to `http://192.168.8.2:3000`
+   d. Or manually edit the file:
+   ```bash
+   nano ./configs/adguardhome/AdGuardHome.yaml
+   ```
    
-   e. During the setup wizard, make sure to set:
-   - **Admin Web Interface**: Listen on `All interfaces (0.0.0.0)`, Port `3000`
-   - **DNS Server**: Listen on `All interfaces (0.0.0.0)`, Port `53`
+   Find and change:
+   ```yaml
+   bind_host: 0.0.0.0
+   ```
+   
+   e. Start AdGuard Home again:
+   ```bash
+   docker compose up -d
+   ```
 
 2. **For Path B (Bare-Metal):**
    
@@ -1311,6 +1328,13 @@ sudo systemctl restart systemd-resolved
    c. Find the `bind_host` settings and change them to:
    ```yaml
    bind_host: 0.0.0.0
+   ```
+   
+   Also check the DNS bind_hosts:
+   ```yaml
+   dns:
+     bind_hosts:
+       - 0.0.0.0
    ```
    
    d. Save and restart:
