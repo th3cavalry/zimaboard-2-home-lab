@@ -45,7 +45,42 @@ sudo bash scripts/setup-storage.sh
 
 ---
 
-### 3. health-check.sh
+### 3. fix-permissions.sh
+**Purpose**: Fixes permissions on storage directories that are not writable by the current user
+
+**Usage**:
+```bash
+sudo bash scripts/fix-permissions.sh
+```
+
+**What it does**:
+- Loads environment variables from `.env`
+- Sets ownership of SSD and HDD mount points to the current user
+- Sets proper permissions (777) on service directories:
+  - `/mnt/ssd/fileshare` (for Samba)
+  - `/mnt/hdd/lancache` (for Lancache cache)
+  - `/mnt/hdd/lancache-logs` (for Lancache logs)
+- Verifies directories are writable after fixing
+
+**When to use**: 
+- When `validate-env.sh` reports permission errors
+- After manually mounting drives
+- After system updates that may have reset permissions
+
+**Example output**:
+```
+==================================
+  Storage Permissions Fix Script
+==================================
+
+[INFO] Fixing permissions for user: yourusername
+[OK] SSD path is now writable by yourusername
+[OK] HDD path is now writable by yourusername
+```
+
+---
+
+### 4. health-check.sh
 **Purpose**: Verifies that all deployed services are running correctly
 
 **Usage**:
@@ -67,7 +102,7 @@ bash scripts/health-check.sh
 
 ---
 
-### 4. reset-and-redeploy.sh
+### 5. reset-and-redeploy.sh
 **Purpose**: Complete reset and redeploy with the latest version from GitHub
 
 **Usage**:
@@ -113,8 +148,9 @@ sudo bash scripts/reset-and-redeploy.sh
 1. **Setup Storage**: `sudo bash scripts/setup-storage.sh`
 2. **Configure Environment**: `cp .env.example .env && nano .env`
 3. **Validate Configuration**: `bash scripts/validate-env.sh`
-4. **Deploy Services**: `docker compose up -d`
-5. **Verify Deployment**: `bash scripts/health-check.sh`
+4. **Fix Permissions** (if needed): `sudo bash scripts/fix-permissions.sh`
+5. **Deploy Services**: `docker compose up -d`
+6. **Verify Deployment**: `bash scripts/health-check.sh`
 
 ### Regular Maintenance
 - Run `bash scripts/health-check.sh` periodically to verify all services are healthy
@@ -126,6 +162,7 @@ sudo bash scripts/reset-and-redeploy.sh
 - Your .env file will be backed up and preserved
 
 ### Troubleshooting
+- If you encounter permission errors, run `sudo bash scripts/fix-permissions.sh`
 - If services aren't working, run `bash scripts/health-check.sh` to identify issues
 - Check Docker logs: `docker compose logs -f`
 - Restart services: `docker compose restart`

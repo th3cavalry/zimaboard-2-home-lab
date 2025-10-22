@@ -149,7 +149,8 @@ if [[ -n "${DATA_PATH_SSD:-}" ]]; then
             success "SSD path is writable"
         else
             error "SSD path is not writable by current user"
-            echo "  Fix with: sudo chown -R $USER:$USER $DATA_PATH_SSD"
+            echo "  Fix with: sudo bash scripts/fix-permissions.sh"
+            echo "  Or manually: sudo chown -R $USER:$USER $DATA_PATH_SSD"
         fi
         
         # Check for fileshare subdirectory
@@ -159,7 +160,8 @@ if [[ -n "${DATA_PATH_SSD:-}" ]]; then
                 success "Fileshare directory is writable"
             else
                 error "Fileshare directory is not writable"
-                echo "  Fix with: sudo chmod -R 777 $DATA_PATH_SSD/fileshare"
+                echo "  Fix with: sudo bash scripts/fix-permissions.sh"
+                echo "  Or manually: sudo chmod -R 777 $DATA_PATH_SSD/fileshare"
             fi
         else
             warning "Fileshare directory not found: $DATA_PATH_SSD/fileshare"
@@ -193,7 +195,8 @@ if [[ -n "${DATA_PATH_HDD:-}" ]]; then
             success "HDD path is writable"
         else
             error "HDD path is not writable by current user"
-            echo "  Fix with: sudo chown -R $USER:$USER $DATA_PATH_HDD"
+            echo "  Fix with: sudo bash scripts/fix-permissions.sh"
+            echo "  Or manually: sudo chown -R $USER:$USER $DATA_PATH_HDD"
         fi
         
         # Check for lancache subdirectories
@@ -203,7 +206,8 @@ if [[ -n "${DATA_PATH_HDD:-}" ]]; then
                 success "Lancache directory is writable"
             else
                 error "Lancache directory is not writable"
-                echo "  Fix with: sudo chmod -R 777 $DATA_PATH_HDD/lancache"
+                echo "  Fix with: sudo bash scripts/fix-permissions.sh"
+                echo "  Or manually: sudo chmod -R 777 $DATA_PATH_HDD/lancache"
             fi
         else
             warning "Lancache directory not found: $DATA_PATH_HDD/lancache"
