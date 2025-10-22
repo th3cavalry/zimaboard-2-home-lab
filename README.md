@@ -849,7 +849,7 @@ The following services are already configured to use your Lancache server (defau
 
 #### Verify Lancache is Working
 
-After configuring DNS rewrites:
+After starting the services and verifying DNS rewrites are active:
 
 ```bash
 # For Path A:
