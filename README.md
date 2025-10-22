@@ -72,6 +72,14 @@ This setup is optimized for the following specifications:
 │   ├── docker-compose.hybrid.yml # Path B: Docker for Lancache/Optional
 │   └── .env.hybrid.example   # Path B: Docker environment config
 │
+├── scripts/                  # Helper scripts for setup and maintenance
+│   ├── validate-env.sh       # Validate environment configuration
+│   ├── setup-storage.sh      # Automate storage setup and formatting
+│   └── health-check.sh       # Verify all services are running correctly
+│
+├── docs/                     # Additional documentation
+│   └── STREAMING_ADS.md      # Important info about streaming ad blocking
+│
 └── configs/
     └── samba/
         └── smb.conf          # Pre-configured Samba config file
@@ -454,6 +462,14 @@ LANCACHE_MAX_SIZE=400
 
 Save and exit (Ctrl+X, then Y, then Enter).
 
+**💡 Tip**: After configuring your `.env` file, you can validate it using the helper script:
+
+```bash
+bash scripts/validate-env.sh
+```
+
+This will check that all required variables are set and that your storage paths are accessible.
+
 ### Step 3.2: Disable systemd-resolved (Critical for DNS Port 53)
 
 **⚠️ IMPORTANT**: Ubuntu's `systemd-resolved` service runs on port 53 by default, which will conflict with AdGuard Home's DNS server. You **must** disable it before deploying the services.
@@ -546,6 +562,22 @@ samba               dperson/samba:latest               Up 10 seconds
 ```
 
 ### Step 3.4: Verify Service Health
+
+**💡 Quick Health Check**: Use the automated health check script to verify all services:
+
+```bash
+bash scripts/health-check.sh
+```
+
+This script automatically checks:
+- Docker services are running
+- Ports are accessible
+- DNS resolution is working
+- Lancache is responding
+- Samba is accessible
+- Storage mounts are correct
+
+**Manual Verification** (optional):
 
 ```bash
 # Check AdGuard Home
