@@ -99,7 +99,7 @@ services:
       - CACHE_MEM_SIZE=500m                          # Memory for cache index
       - CACHE_DISK_SIZE=${LANCACHE_MAX_SIZE:-400}g   # Max cache size on disk
       - CACHE_MAX_AGE=3650d                          # Keep cached content for 10 years
-      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} # Fallback DNS
+      - UPSTREAM_DNS=${UPSTREAM_DNS_PRIMARY:-1.1.1.1} ${UPSTREAM_DNS_SECONDARY:-1.0.0.1} # Fallback DNS servers
     
     # Logging Configuration
     logging:
