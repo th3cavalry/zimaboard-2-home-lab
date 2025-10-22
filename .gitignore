@@ -27,8 +27,10 @@ api_keys.txt
 # Configuration Files with Sensitive Data
 ################################################################################
 
-# AdGuard Home configuration (may contain admin passwords)
+# AdGuard Home configuration (may contain admin passwords after setup)
+# Allow the template in configs/ but ignore runtime configs
 AdGuardHome.yaml
+!configs/adguardhome/AdGuardHome.yaml
 adguard_config.yaml
 
 # Nextcloud configuration
