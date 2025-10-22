@@ -856,10 +856,12 @@ After configuring DNS rewrites:
 
 ```bash
 # For Path A:
+cd ~/zimaboard-2-home-lab
 docker compose logs -f lancache
 
 # For Path B:
-docker compose -f bare-metal/docker-compose.hybrid.yml logs -f lancache
+cd ~/zimaboard-2-home-lab/bare-metal
+docker compose -f docker-compose.hybrid.yml logs -f lancache
 
 # When downloading a game, you should see cache HIT/MISS entries
 # First download: MISS (content is being cached)
@@ -1212,6 +1214,16 @@ du -sh /mnt/hdd/lancache
 
 ### Troubleshooting
 
+**⚠️ Important Note About Docker Compose Commands:**
+
+When running `docker compose` commands, you must be in the correct directory:
+- **Path A**: Always run commands from `~/zimaboard-2-home-lab` (the main repository directory)
+- **Path B**: Run commands from `~/zimaboard-2-home-lab/bare-metal` with the `-f docker-compose.hybrid.yml` flag
+
+If you get the error **"no configuration file provided: not found"**, it means you're not in the correct directory or haven't specified the config file. Navigate to the appropriate directory first using `cd`.
+
+---
+
 #### Port 53 Already in Use / AdGuard Home Won't Start
 
 **Error Message:**
@@ -1251,6 +1263,7 @@ Error response from daemon: failed to bind host port for 0.0.0.0:53:172.20.0.2:5
 4. **Restart the container:**
    ```bash
    # Path A:
+   cd ~/zimaboard-2-home-lab
    docker compose up -d
    
    # Path B:
@@ -1281,6 +1294,7 @@ sudo systemctl restart systemd-resolved
    
    a. Stop AdGuard Home:
    ```bash
+   cd ~/zimaboard-2-home-lab
    docker compose stop adguard
    ```
    
@@ -1367,6 +1381,8 @@ sudo systemctl restart systemd-resolved
 
 **Path A:**
 ```bash
+cd ~/zimaboard-2-home-lab
+
 # Check if service is running
 docker compose ps adguardhome
 
@@ -1401,6 +1417,7 @@ nslookup doubleclick.net 192.168.8.2
 ```bash
 # Check Lancache logs (both paths)
 # Path A:
+cd ~/zimaboard-2-home-lab
 docker compose logs lancache | grep -i "cache"
 
 # Path B:
@@ -1420,6 +1437,8 @@ ls -la /mnt/hdd/lancache
 
 **Path A:**
 ```bash
+cd ~/zimaboard-2-home-lab
+
 # Check if service is running
 docker compose ps samba
 
@@ -1460,6 +1479,7 @@ df -h
 
 # Clear Lancache if needed
 # Path A:
+cd ~/zimaboard-2-home-lab
 docker compose stop lancache
 sudo rm -rf /mnt/hdd/lancache/*
 docker compose start lancache
@@ -1531,8 +1551,10 @@ Example for authenticated access:
 
 Edit `.env` file:
 ```bash
+cd ~/zimaboard-2-home-lab
+nano .env
 # Increase cache size (in GB)
-LANCACHE_MAX_SIZE=450
+# LANCACHE_MAX_SIZE=450
 ```
 
 Restart services:
