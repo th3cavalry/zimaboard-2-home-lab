@@ -448,7 +448,76 @@ LANCACHE_MAX_SIZE=400
 
 Save and exit (Ctrl+X, then Y, then Enter).
 
-### Step 3.2: Deploy All Services
+### Step 3.2: Disable systemd-resolved (Critical for DNS Port 53)
+
+**⚠️ IMPORTANT**: Ubuntu's `systemd-resolved` service runs on port 53 by default, which will conflict with AdGuard Home's DNS server. You **must** disable it before deploying the services.
+
+#### Option A: Disable systemd-resolved Completely (Recommended)
+
+This is the simplest approach and works best for a dedicated homelab server:
+
+```bash
+# Stop and disable systemd-resolved
+sudo systemctl stop systemd-resolved
+sudo systemctl disable systemd-resolved
+
+# Remove the existing resolv.conf symlink
+sudo rm /etc/resolv.conf
+
+# Create a new resolv.conf with direct DNS servers
+echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+echo "nameserver 1.0.0.1" | sudo tee -a /etc/resolv.conf
+
+# Make the file immutable to prevent automatic changes
+sudo chattr +i /etc/resolv.conf
+
+# Verify port 53 is now free
+sudo lsof -i :53
+# Should return nothing or error (port is free)
+```
+
+#### Option B: Configure systemd-resolved to Use Different Port (Alternative)
+
+If you want to keep systemd-resolved for some reason:
+
+```bash
+# Edit resolved configuration
+sudo nano /etc/systemd/resolved.conf
+```
+
+Add or modify these lines:
+
+```
+[Resolve]
+DNSStubListener=no
+DNS=1.1.1.1 1.0.0.1
+```
+
+Save and restart:
+
+```bash
+# Restart systemd-resolved
+sudo systemctl restart systemd-resolved
+
+# Update resolv.conf
+sudo rm /etc/resolv.conf
+sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+# Verify port 53 is free
+sudo lsof -i :53
+```
+
+**After completing either option**, verify that port 53 is available:
+
+```bash
+# This command should return nothing (port is free)
+sudo lsof -i :53
+
+# Or this should show no service on port 53
+sudo netstat -tulpn | grep :53
+```
+
+### Step 3.3: Deploy All Services
 
 ```bash
 # Start all services
@@ -470,7 +539,7 @@ lancache            lancachenet/monolithic:latest      Up 10 seconds
 samba               dperson/samba:latest               Up 10 seconds
 ```
 
-### Step 3.3: Verify Service Health
+### Step 3.4: Verify Service Health
 
 ```bash
 # Check AdGuard Home
@@ -1121,6 +1190,58 @@ du -sh /mnt/hdd/lancache
 ```
 
 ### Troubleshooting
+
+#### Port 53 Already in Use / AdGuard Home Won't Start
+
+**Error Message:**
+```
+Error response from daemon: failed to bind host port for 0.0.0.0:53:172.20.0.2:53/tcp: address already in use
+```
+
+**Cause:** Ubuntu's `systemd-resolved` service is using port 53 for DNS resolution.
+
+**Solution:**
+
+1. **Stop and disable systemd-resolved:**
+   ```bash
+   sudo systemctl stop systemd-resolved
+   sudo systemctl disable systemd-resolved
+   ```
+
+2. **Configure alternative DNS resolution:**
+   ```bash
+   # Remove the symlink
+   sudo rm /etc/resolv.conf
+   
+   # Create new resolv.conf with Cloudflare DNS
+   echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+   echo "nameserver 1.0.0.1" | sudo tee -a /etc/resolv.conf
+   
+   # Make immutable to prevent changes
+   sudo chattr +i /etc/resolv.conf
+   ```
+
+3. **Verify port 53 is free:**
+   ```bash
+   sudo lsof -i :53
+   # Should return nothing (port is free)
+   ```
+
+4. **Restart the container:**
+   ```bash
+   # Path A:
+   docker compose up -d
+   
+   # Path B:
+   sudo systemctl start AdGuardHome
+   ```
+
+**Alternative:** If you need systemd-resolved for other services, configure it to not listen on port 53:
+```bash
+sudo nano /etc/systemd/resolved.conf
+# Add: DNSStubListener=no
+sudo systemctl restart systemd-resolved
+```
 
 #### AdGuard Home Not Blocking
 
