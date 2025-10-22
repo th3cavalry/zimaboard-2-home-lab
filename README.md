@@ -117,9 +117,15 @@ The 64GB eMMC has limited write cycles (typically 3,000-5,000 cycles). To maximi
 
 We'll implement these optimizations during setup.
 
-**💡 Advanced Setup Option:**
+**💡 OPTIONAL Advanced Setup:**
 
-For **maximum eMMC longevity**, consider the advanced partitioning setup in [EMMC_SSD_SETUP.md](EMMC_SSD_SETUP.md). This approach installs Ubuntu with a custom partition layout that keeps only the core OS on eMMC (5-10GB) while directing **ALL write-intensive operations** (/home, /var, /tmp) to the SSD. This requires more advanced setup during installation but provides the best protection for eMMC lifespan. The standard setup described in this README is sufficient for most users.
+For **maximum eMMC longevity**, consider the advanced partitioning setup in [EMMC_SSD_SETUP.md](EMMC_SSD_SETUP.md). 
+
+**⚠️ This advanced setup is OPTIONAL and NOT required for either Path A or Path B.**
+
+The advanced setup installs Ubuntu with a custom partition layout that keeps only the core OS on eMMC (5-10GB) while directing **ALL write-intensive operations** (/home, /var, /tmp) to the SSD. This requires more advanced setup during installation but provides the best protection for eMMC lifespan.
+
+**For most users**: The standard setup described in this README (with Docker data moved to SSD in Step 1.3.6) provides sufficient eMMC protection and is much simpler to implement.
 
 ### Step 1.2: Install Docker and Docker Compose
 

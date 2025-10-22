@@ -4,15 +4,24 @@ This directory is the mount point for the Samba network file share.
 
 ## Setup Instructions
 
-You should mount your 2TB SSD to a parent directory and then bind-mount or symlink to this location. For example:
+The docker-compose.yml is configured to use `/mnt/ssd/fileshare` as the Samba share location.
+
+**Recommended Setup:**
 
 1. Mount your 2TB SSD to `/mnt/ssd`
-2. Create a directory: `sudo mkdir -p /mnt/ssd/fileshare`
-3. Update your docker-compose.yml to point to `/mnt/ssd/fileshare` instead of `./data/fileshare`
+2. Create the fileshare directory: `sudo mkdir -p /mnt/ssd/fileshare`
+3. The docker-compose.yml will automatically map this to the Samba container
 
-Or alternatively:
-1. Mount your 2TB SSD directly to this location
-2. Update the volume path in your docker-compose.yml accordingly
+The volume mapping in docker-compose.yml:
+```yaml
+${DATA_PATH_SSD:-/mnt/ssd}/fileshare:/shares/Shared
+```
+
+This means:
+- **Host path**: `/mnt/ssd/fileshare` (or `${DATA_PATH_SSD}/fileshare` if you set a custom path)
+- **Container path**: `/shares/Shared`
+
+**Note**: This `./data/fileshare` directory in the repository is only a placeholder for reference. The actual Samba data should be stored on your SSD at `/mnt/ssd/fileshare`.
 
 ## Permissions
 Ensure proper permissions are set on the mounted directory:
