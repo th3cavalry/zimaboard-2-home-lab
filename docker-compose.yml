@@ -51,7 +51,7 @@ services:
       - "${ADGUARD_DNS_PORT:-53}:53/udp"      # DNS over UDP (primary)
       - "${ADGUARD_WEB_PORT:-3000}:3000/tcp"  # Web interface
       - "853:853/tcp"                          # DNS-over-TLS (optional)
-      - "3001:3001/tcp"                        # DNS-over-QUIC (optional)
+      - "853:853/udp"                          # DNS-over-QUIC (optional)
     
     # Volume Mappings
     volumes:
