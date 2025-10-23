@@ -144,32 +144,49 @@ dns:
   # DNS Rewrites for Lancache Integration
   # These rewrites redirect game download domains to your local Lancache server
   # IMPORTANT: Update the IP addresses below if your server IP is different from 192.168.8.2
+  #
+  # NOTE: Both base domains (domain.com) and wildcard subdomains (*.domain.com) are needed
+  # because wildcard patterns don't match the base domain itself
   rewrites:
     # Steam Content Delivery
+    - domain: "steamcontent.com"
+      answer: "192.168.8.2"
     - domain: "*.steamcontent.com"
       answer: "192.168.8.2"
     
     # Epic Games Downloads
+    - domain: "download.epicgames.com"
+      answer: "192.168.8.2"
     - domain: "*.download.epicgames.com"
       answer: "192.168.8.2"
     
     # Origin (EA) Downloads
+    - domain: "origin.com"
+      answer: "192.168.8.2"
     - domain: "*.origin.com"
       answer: "192.168.8.2"
     
     # Xbox Live Downloads
+    - domain: "xboxlive.com"
+      answer: "192.168.8.2"
     - domain: "*.xboxlive.com"
       answer: "192.168.8.2"
     
     # PlayStation Network Downloads
+    - domain: "playstation.net"
+      answer: "192.168.8.2"
     - domain: "*.playstation.net"
       answer: "192.168.8.2"
     
     # Battle.net (Blizzard) Downloads
+    - domain: "blizzard.com"
+      answer: "192.168.8.2"
     - domain: "*.blizzard.com"
       answer: "192.168.8.2"
     
     # Windows Update Downloads
+    - domain: "windowsupdate.com"
+      answer: "192.168.8.2"
     - domain: "*.windowsupdate.com"
       answer: "192.168.8.2"
 
@@ -271,13 +288,17 @@ schema_version: 20
 #
 # ✅ Lancache DNS Rewrites (Pre-Configured):
 # The following DNS rewrites are already configured above in the dns.rewrites section:
-# - *.steamcontent.com → 192.168.8.2 (or your server IP)
-# - *.download.epicgames.com → 192.168.8.2
-# - *.origin.com → 192.168.8.2
-# - *.xboxlive.com → 192.168.8.2
-# - *.playstation.net → 192.168.8.2
-# - *.blizzard.com → 192.168.8.2
-# - *.windowsupdate.com → 192.168.8.2
+# - steamcontent.com + *.steamcontent.com → 192.168.8.2 (or your server IP)
+# - download.epicgames.com + *.download.epicgames.com → 192.168.8.2
+# - origin.com + *.origin.com → 192.168.8.2
+# - xboxlive.com + *.xboxlive.com → 192.168.8.2
+# - playstation.net + *.playstation.net → 192.168.8.2
+# - blizzard.com + *.blizzard.com → 192.168.8.2
+# - windowsupdate.com + *.windowsupdate.com → 192.168.8.2
+#
+# NOTE: Both base domains and wildcard patterns are included because DNS wildcard
+# rewrites (*.domain.com) do NOT match the base domain (domain.com) itself.
+# This ensures queries for both "steamcontent.com" and "cdn.steamcontent.com" resolve correctly.
 #
 # IMPORTANT: If your server IP is different from 192.168.8.2, update the IP addresses
 # in the dns.rewrites section above before starting AdGuard Home.

@@ -807,29 +807,41 @@ Good news! The `AdGuardHome.yaml` configuration file in this repository already 
 
 The following services are already configured to use your Lancache server (default IP: `192.168.8.2`):
 
-| Service | Domain Pattern |
-|---------|----------------|
-| **Steam** | `*.steamcontent.com` |
-| **Epic Games** | `*.download.epicgames.com` |
-| **Origin (EA)** | `*.origin.com` |
-| **Xbox Live** | `*.xboxlive.com` |
-| **PlayStation Network** | `*.playstation.net` |
-| **Battle.net (Blizzard)** | `*.blizzard.com` |
-| **Windows Updates** | `*.windowsupdate.com` |
+**Note:** Both base domains (e.g., `steamcontent.com`) and wildcard subdomains (e.g., `*.steamcontent.com`) are configured because wildcard patterns don't match the base domain itself.
+
+| Service | Domain Patterns |
+|---------|-----------------|
+| **Steam** | `steamcontent.com`, `*.steamcontent.com` |
+| **Epic Games** | `download.epicgames.com`, `*.download.epicgames.com` |
+| **Origin (EA)** | `origin.com`, `*.origin.com` |
+| **Xbox Live** | `xboxlive.com`, `*.xboxlive.com` |
+| **PlayStation Network** | `playstation.net`, `*.playstation.net` |
+| **Battle.net (Blizzard)** | `blizzard.com`, `*.blizzard.com` |
+| **Windows Updates** | `windowsupdate.com`, `*.windowsupdate.com` |
 
 #### Verify DNS Rewrites Are Active
 
 1. **Via Web Interface**:
    - Log into AdGuard Home at `http://192.168.8.2:3000`
    - Go to **Filters → DNS rewrites**
-   - You should see all 7 pre-configured rewrites listed
+   - You should see all 14 pre-configured rewrites listed (7 base domains + 7 wildcard patterns)
 
-2. **Via Command Line**:
+2. **Via Automated Test Script** (Recommended):
    ```bash
-   # Test DNS resolution for a Lancache domain
-   nslookup steamcontent.com 192.168.8.2
+   # Run the DNS resolution test script
+   bash scripts/test-lancache-dns.sh 192.168.8.2
    
-   # Expected output should show your server IP (e.g., 192.168.8.2)
+   # The script will test all 14 DNS rewrites and report results
+   # ✅ All tests passed means Lancache DNS is configured correctly
+   ```
+
+3. **Via Command Line** (Manual Testing):
+   ```bash
+   # Test DNS resolution for Lancache domains (both base and subdomains)
+   nslookup steamcontent.com 192.168.8.2
+   nslookup cdn.steamcontent.com 192.168.8.2
+   
+   # Both should return your server IP (e.g., 192.168.8.2)
    # If you see "No answer", check the troubleshooting steps below
    ```
 
@@ -1412,24 +1424,78 @@ nslookup doubleclick.net 192.168.8.2
 
 #### Lancache Not Caching
 
-```bash
-# Check Lancache logs (both paths)
-# Path A:
-cd ~/zimaboard-2-home-lab
-docker compose logs lancache | grep -i "cache"
+**Symptoms:**
+- Game downloads don't appear to be cached
+- No cache HIT/MISS entries in Lancache logs
+- DNS queries for game CDN domains return "No answer" or wrong IP
 
-# Path B:
-cd ~/zimaboard-2-home-lab/bare-metal
-docker compose -f docker-compose.hybrid.yml logs lancache | grep -i "cache"
+**Common Cause:** DNS rewrites for Lancache domains are not configured correctly.
 
-# Verify DNS rewrites are configured in AdGuard Home
-# Test resolution
-nslookup steamcontent.com 192.168.8.2
-# Should return your ZimaBoard IP (192.168.8.2)
+**Solution:**
 
-# Check cache directory has proper permissions
-ls -la /mnt/hdd/lancache
-```
+1. **Test DNS resolution first:**
+   ```bash
+   # Run the automated test script
+   bash scripts/test-lancache-dns.sh 192.168.8.2
+   
+   # Or test manually
+   nslookup steamcontent.com 192.168.8.2
+   nslookup cdn.steamcontent.com 192.168.8.2
+   # Both should return your ZimaBoard IP (192.168.8.2)
+   ```
+
+2. **If DNS tests fail, verify DNS rewrites in AdGuard Home:**
+   ```bash
+   # Via web interface:
+   # - Navigate to http://192.168.8.2:3000
+   # - Go to Filters → DNS rewrites
+   # - Verify all 14 rewrites are present (7 base domains + 7 wildcard patterns)
+   # - Each service should have TWO entries:
+   #   - steamcontent.com → 192.168.8.2
+   #   - *.steamcontent.com → 192.168.8.2
+   ```
+
+3. **If DNS rewrites are missing or incorrect:**
+   ```bash
+   # Check the configuration file
+   cat configs/adguardhome/AdGuardHome.yaml | grep -A 50 "dns.rewrites"
+   
+   # Restore from git if needed
+   git checkout configs/adguardhome/AdGuardHome.yaml
+   
+   # Restart AdGuard Home
+   # Path A:
+   docker compose restart adguardhome
+   
+   # Path B:
+   sudo systemctl restart AdGuardHome
+   ```
+
+4. **Check Lancache logs and cache directory:**
+   ```bash
+   # Check Lancache logs (both paths)
+   # Path A:
+   cd ~/zimaboard-2-home-lab
+   docker compose logs lancache | grep -i "cache"
+   
+   # Path B:
+   cd ~/zimaboard-2-home-lab/bare-metal
+   docker compose -f docker-compose.hybrid.yml logs lancache | grep -i "cache"
+   
+   # Check cache directory has proper permissions
+   ls -la /mnt/hdd/lancache
+   ```
+
+5. **Verify Lancache container is running and healthy:**
+   ```bash
+   # Path A:
+   docker compose ps lancache
+   docker compose logs lancache --tail 50
+   
+   # Path B:
+   docker compose -f docker-compose.hybrid.yml ps lancache
+   docker compose -f docker-compose.hybrid.yml logs lancache --tail 50
+   ```
 
 #### Samba Share Not Accessible
 
