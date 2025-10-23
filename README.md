@@ -807,29 +807,32 @@ Good news! The `AdGuardHome.yaml` configuration file in this repository already 
 
 The following services are already configured to use your Lancache server (default IP: `192.168.8.2`):
 
-| Service | Domain Pattern |
-|---------|----------------|
-| **Steam** | `*.steamcontent.com` |
-| **Epic Games** | `*.download.epicgames.com` |
-| **Origin (EA)** | `*.origin.com` |
-| **Xbox Live** | `*.xboxlive.com` |
-| **PlayStation Network** | `*.playstation.net` |
-| **Battle.net (Blizzard)** | `*.blizzard.com` |
-| **Windows Updates** | `*.windowsupdate.com` |
+**Note:** Both base domains (e.g., `steamcontent.com`) and wildcard subdomains (e.g., `*.steamcontent.com`) are configured because wildcard patterns don't match the base domain itself.
+
+| Service | Domain Patterns |
+|---------|-----------------|
+| **Steam** | `steamcontent.com`, `*.steamcontent.com` |
+| **Epic Games** | `download.epicgames.com`, `*.download.epicgames.com` |
+| **Origin (EA)** | `origin.com`, `*.origin.com` |
+| **Xbox Live** | `xboxlive.com`, `*.xboxlive.com` |
+| **PlayStation Network** | `playstation.net`, `*.playstation.net` |
+| **Battle.net (Blizzard)** | `blizzard.com`, `*.blizzard.com` |
+| **Windows Updates** | `windowsupdate.com`, `*.windowsupdate.com` |
 
 #### Verify DNS Rewrites Are Active
 
 1. **Via Web Interface**:
    - Log into AdGuard Home at `http://192.168.8.2:3000`
    - Go to **Filters → DNS rewrites**
-   - You should see all 7 pre-configured rewrites listed
+   - You should see all 14 pre-configured rewrites listed (7 base domains + 7 wildcard patterns)
 
 2. **Via Command Line**:
    ```bash
-   # Test DNS resolution for a Lancache domain
+   # Test DNS resolution for Lancache domains (both base and subdomains)
    nslookup steamcontent.com 192.168.8.2
+   nslookup cdn.steamcontent.com 192.168.8.2
    
-   # Expected output should show your server IP (e.g., 192.168.8.2)
+   # Both should return your server IP (e.g., 192.168.8.2)
    # If you see "No answer", check the troubleshooting steps below
    ```
 
